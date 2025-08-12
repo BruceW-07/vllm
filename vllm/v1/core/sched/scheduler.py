@@ -29,7 +29,7 @@ from vllm.v1.core.sched.utils import check_stop
 from vllm.v1.engine import (EngineCoreEventType, EngineCoreOutput,
                             EngineCoreOutputs)
 from vllm.v1.kv_cache_interface import KVCacheConfig
-from vllm.v1.metrics.stats import SchedulerStats
+from vllm.v1.metrics.stats import RequestMetrics, SchedulerStats
 from vllm.v1.outputs import ModelRunnerOutput
 from vllm.v1.request import Request, RequestStatus
 from vllm.v1.spec_decode.metrics import SpecDecodingStats
@@ -868,6 +868,7 @@ class Scheduler(SchedulerInterface):
                         events=request.take_events(),
                         kv_transfer_params=kv_transfer_params,
                         num_cached_tokens=request.num_cached_tokens,
+                        metrics=RequestMetrics(),
                     ))
 
             else:
@@ -910,6 +911,9 @@ class Scheduler(SchedulerInterface):
             # Return stats to only one of the front-ends.
             next(iter(engine_core_outputs.values())).scheduler_stats = (
                 self.make_stats(spec_decoding_stats))
+
+            # Extract KV transfer timing data for finished requests
+            self._extract_kv_timing_data(engine_core_outputs)
 
         return engine_core_outputs
 
@@ -1145,3 +1149,34 @@ class Scheduler(SchedulerInterface):
         for req_id in (model_runner_output.finished_sending or ()):
             logger.debug("Finished sending KV transfer for request %s", req_id)
             self._free_blocks(self.requests[req_id])
+
+    def _extract_kv_timing_data(self, engine_core_outputs: dict[int, EngineCoreOutputs]) -> None:
+        """Extract KV transfer timing data for finished requests and attach to outputs."""
+        if not self.connector:
+            return
+            
+        # Collect all finished request IDs across all clients
+        all_finished_req_ids = set()
+        for eco in engine_core_outputs.values():
+            if eco.finished_requests:
+                all_finished_req_ids.update(eco.finished_requests)
+        
+        if not all_finished_req_ids:
+            return
+            
+        # Get timing data from the KV connector
+        timing_data = self.connector.get_and_clear_timing_data(all_finished_req_ids)
+        
+        # Attach timing data to the appropriate engine core outputs
+        for eco in engine_core_outputs.values():
+            if eco.outputs:
+                for output in eco.outputs:
+                    req_id = output.request_id
+                    if req_id in timing_data:
+                        # Ensure output has metrics initialized
+                        if output.metrics is None:
+                            output.metrics = RequestMetrics()
+                        
+                        # Update metrics with timing data
+                        output.metrics.kv_transfer_time = timing_data[req_id].get("kv_transfer_time", 0.0)
+                        output.metrics.host_buffer_sync_time = timing_data[req_id].get("host_buffer_sync_time", 0.0)

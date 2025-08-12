@@ -250,23 +250,30 @@ async def _handle_completions(api: str, request: Request):
                             data_str = chunk_str[6:].strip()
                             if data_str and data_str != '[DONE]':
                                 data = json.loads(data_str)
-                                assert ('vllm_timing' in data and
-                                        'queued_time' in data['vllm_timing']
-                                        and 'execute_time'
-                                        in data['vllm_timing'])
-                                data['vllm_timing'] = {
-                                    'prefill_queued_time': \
-                                        prefill_timing['prefill_queued_time'],
-                                    'prefill_execute_time': \
-                                        prefill_timing['prefill_execute_time'],
-                                    'decode_queued_time': \
-                                        data['vllm_timing']['queued_time'],
-                                    'decode_execute_time': \
-                                        data['vllm_timing']['execute_time'],
-                                }
-                                # Reconstruct chunk
-                                chunk = f"data: {json.dumps(data)}\n\n".encode(
-                                )
+                                if 'vllm_timing' in data:
+                                    # Merge prefill and decode timing
+                                    merged_timing = {}
+                                    
+                                    # Add prefill timing
+                                    if prefill_timing:
+                                        merged_timing.update(prefill_timing)
+                                    
+                                    # Add decode timing
+                                    if 'queued_time' in data['vllm_timing']:
+                                        merged_timing['decode_queued_time'] = data['vllm_timing']['queued_time']
+                                    if 'execute_time' in data['vllm_timing']:
+                                        merged_timing['decode_execute_time'] = data['vllm_timing']['execute_time']
+                                    
+                                    # Add KV transfer timing (only from decode response)
+                                    if 'kv_transfer_time' in data['vllm_timing']:
+                                        merged_timing['kv_transfer_time'] = data['vllm_timing']['kv_transfer_time']
+                                    if 'host_buffer_sync_time' in data['vllm_timing']:
+                                        merged_timing['host_buffer_sync_time'] = data['vllm_timing']['host_buffer_sync_time']
+                                    
+                                    data['vllm_timing'] = merged_timing
+                                    
+                                    # Reconstruct chunk
+                                    chunk = f"data: {json.dumps(data)}\n\n".encode()
                     except Exception as e:
                         logger.warning("Failed to inject timing info: %s", e)
 

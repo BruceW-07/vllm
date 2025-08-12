@@ -93,6 +93,17 @@ class BenchmarkMetrics:
     std_decode_execute_time_ms: float = 0.0
     percentiles_decode_execute_time_ms: list[tuple[float, float]] = field(
         default_factory=list)
+    # KV transfer timing metrics for prefill-decode separation
+    mean_kv_transfer_time_ms: float = 0.0
+    median_kv_transfer_time_ms: float = 0.0
+    std_kv_transfer_time_ms: float = 0.0
+    percentiles_kv_transfer_time_ms: list[tuple[float, float]] = field(
+        default_factory=list)
+    mean_host_buffer_sync_time_ms: float = 0.0
+    median_host_buffer_sync_time_ms: float = 0.0
+    std_host_buffer_sync_time_ms: float = 0.0
+    percentiles_host_buffer_sync_time_ms: list[tuple[float, float]] = field(
+        default_factory=list)
 
 
 def _get_current_request_rate(
@@ -243,6 +254,8 @@ def calculate_metrics(
     prefill_execute_times: list[float] = []
     decode_queue_times: list[float] = []
     decode_execute_times: list[float] = []
+    kv_transfer_times: list[float] = []
+    host_buffer_sync_times: list[float] = []
     for i in range(len(outputs)):
         if outputs[i].success:
             output_len = outputs[i].output_tokens
@@ -283,6 +296,14 @@ def calculate_metrics(
             if outputs[i].decode_execute_time is not None:
                 # Convert to ms
                 decode_execute_times.append(outputs[i].decode_execute_time * 1000)
+            
+            # KV transfer timing data
+            if outputs[i].timing and outputs[i].timing.get("kv_transfer_time"):
+                # Convert to ms
+                kv_transfer_times.append(outputs[i].timing["kv_transfer_time"] * 1000)
+            if outputs[i].timing and outputs[i].timing.get("host_buffer_sync_time"):
+                # Convert to ms
+                host_buffer_sync_times.append(outputs[i].timing["host_buffer_sync_time"] * 1000)
             
             completed += 1
         else:
@@ -373,6 +394,21 @@ def calculate_metrics(
             (p, np.percentile(decode_execute_times or 0, p))
             for p in selected_percentiles
         ] if decode_execute_times else [],
+        # KV transfer timing metrics
+        mean_kv_transfer_time_ms=np.mean(kv_transfer_times or 0),
+        median_kv_transfer_time_ms=np.median(kv_transfer_times or 0),
+        std_kv_transfer_time_ms=np.std(kv_transfer_times or 0),
+        percentiles_kv_transfer_time_ms=[
+            (p, np.percentile(kv_transfer_times or 0, p))
+            for p in selected_percentiles
+        ] if kv_transfer_times else [],
+        mean_host_buffer_sync_time_ms=np.mean(host_buffer_sync_times or 0),
+        median_host_buffer_sync_time_ms=np.median(host_buffer_sync_times or 0),
+        std_host_buffer_sync_time_ms=np.std(host_buffer_sync_times or 0),
+        percentiles_host_buffer_sync_time_ms=[
+            (p, np.percentile(host_buffer_sync_times or 0, p))
+            for p in selected_percentiles
+        ] if host_buffer_sync_times else [],
     )
 
     return metrics, actual_output_lens
@@ -599,6 +635,8 @@ async def benchmark(
         "prefill_execute_times": [output.prefill_execute_time for output in outputs],
         "decode_queue_times": [output.decode_queued_time for output in outputs],
         "decode_execute_times": [output.decode_execute_time for output in outputs],
+        "kv_transfer_times": [output.timing.get("kv_transfer_time") if output.timing else None for output in outputs],
+        "host_buffer_sync_times": [output.timing.get("host_buffer_sync_time") if output.timing else None for output in outputs],
     }
 
     if rps_change_events:
@@ -645,6 +683,8 @@ async def benchmark(
     process_one_metric("prefill_execute_time", "Prefill Execute Time", "Prefill Execute Time")
     process_one_metric("decode_queue_time", "Decode Queue Time", "Decode Queue Time")
     process_one_metric("decode_execute_time", "Decode Execute Time", "Decode Execute Time")
+    process_one_metric("kv_transfer_time", "KV Transfer Time", "KV Transfer Time")
+    process_one_metric("host_buffer_sync_time", "Host Buffer Sync Time", "Host Buffer Sync Time")
 
     print("=" * 50)
 
@@ -710,6 +750,8 @@ def save_to_pytorch_benchmark_format(args: argparse.Namespace,
         "mean_prefill_execute_time_ms", "median_prefill_execute_time_ms", "std_prefill_execute_time_ms",
         "mean_decode_queue_time_ms", "median_decode_queue_time_ms", "std_decode_queue_time_ms",
         "mean_decode_execute_time_ms", "median_decode_execute_time_ms", "std_decode_execute_time_ms",
+        "mean_kv_transfer_time_ms", "median_kv_transfer_time_ms", "std_kv_transfer_time_ms",
+        "mean_host_buffer_sync_time_ms", "median_host_buffer_sync_time_ms", "std_host_buffer_sync_time_ms",
     ]
     # These raw data might be useful, but they are rather big. They can be added
     # later if needed
@@ -890,12 +932,13 @@ def add_cli_args(parser: argparse.ArgumentParser):
         "--percentile-metrics",
         type=str,
         default="ttft,tpot,itl,e2el,prefill_queue_time,prefill_execute_time,"
-        "decode_queue_time,decode_execute_time",
+        "decode_queue_time,decode_execute_time,kv_transfer_time,host_buffer_sync_time",
         help="Comma-separated list of selected metrics to report percentils. "
         "This argument specifies the metrics to report percentiles. "
         "Allowed metric names are \"ttft\", \"tpot\", \"itl\", \"e2el\", "
         "\"prefill_queue_time\", \"prefill_execute_time\", "
-        "\"decode_queue_time\", \"decode_execute_time\". ")
+        "\"decode_queue_time\", \"decode_execute_time\", "
+        "\"kv_transfer_time\", \"host_buffer_sync_time\". ")
     parser.add_argument(
         "--metric-percentiles",
         type=str,

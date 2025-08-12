@@ -224,6 +224,32 @@ class NixlConnector(KVConnectorBase_V1):
            self.connector_worker.copy_blocks:
             self.connector_worker.save_kv_to_host(self._connector_metadata)
 
+    def get_and_clear_timing_data(self, req_ids: set[str]) -> dict[str, dict[str, float]]:
+        """
+        Extract and clear KV transfer timing data for the specified request IDs.
+        
+        Args:
+            req_ids: Set of request IDs to extract timing data for
+            
+        Returns:
+            Dictionary mapping req_id to timing data, format:
+            {
+                "req_id": {
+                    "kv_transfer_time": float,  # seconds
+                    "host_buffer_sync_time": float,  # seconds, only for TPU/CPU buffer
+                }
+            }
+        """
+        assert self.connector_worker is not None
+        return self.connector_worker.get_and_clear_timing_data(req_ids)
+
+    def has_timing_data(self, req_id: str) -> bool:
+        """Check if timing data is available for a request."""
+        assert self.connector_worker is not None
+        return self.connector_worker.has_timing_data(req_id)
+
+    # ...existing code...
+
 
 class NixlConnectorScheduler:
     """Implementation of Scheduler side methods"""
@@ -512,6 +538,9 @@ class NixlConnectorWorker:
         self._recving_transfers = defaultdict[ReqId, list[Transfer]](list)
         # Track the expiration time of requests that are waiting to be sent.
         self._reqs_to_send: dict[ReqId, float] = {}
+        # Store completed transfer times and host buffer sync times for requests
+        self._completed_transfer_times: dict[ReqId, float] = {}
+        self._completed_host_buffer_sync_times: dict[ReqId, float] = {}
 
         # Background thread for handling new handshake requests.
         self._nixl_handshake_listener_t: Optional[threading.Thread] = None
@@ -994,13 +1023,20 @@ class NixlConnectorWorker:
         assert self.copy_blocks is not None
 
         local_block_ids = meta.local_block_ids
+        # Record start time for host buffer sync
+        sync_start_time = time.perf_counter()
         self.copy_blocks(self.host_xfer_buffers, self.device_kv_caches,
                          local_block_ids, local_block_ids, "h2d")
+        # Record host buffer sync time
+        sync_duration = time.perf_counter() - sync_start_time
+        self._completed_host_buffer_sync_times[req_id] = sync_duration
+        
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
                 "synced recved kv of request[%s] to device kv buffer,"
-                "local_block_ids: %s. ", req_id,
-                ",".join(map(str, meta.local_block_ids)))
+                "local_block_ids: %s. Host buffer sync time: %.4f ms", 
+                req_id, ",".join(map(str, meta.local_block_ids)), 
+                sync_duration * 1000)
 
     def save_kv_to_host(self, metadata: NixlConnectorMetadata):
         """copy kv from device to host buffer."""
@@ -1013,9 +1049,18 @@ class NixlConnectorWorker:
                     "save_load_kv for request[%s] to host xfer buffer."
                     "local_block_ids: %s. ", req_id,
                     ",".join(map(str, meta.local_block_ids)))
+            # Record start time for host buffer sync (d2h)
+            sync_start_time = time.perf_counter()
             # blocking
             self.copy_blocks(self.device_kv_caches, self.host_xfer_buffers,
                              meta.local_block_ids, meta.local_block_ids, "d2h")
+            # Record host buffer sync time (d2h)
+            sync_duration = time.perf_counter() - sync_start_time
+            # For d2h operations, we accumulate the time if it already exists
+            if req_id in self._completed_host_buffer_sync_times:
+                self._completed_host_buffer_sync_times[req_id] += sync_duration
+            else:
+                self._completed_host_buffer_sync_times[req_id] = sync_duration
 
     def get_finished(self) -> tuple[set[str], set[str]]:
         """
@@ -1090,11 +1135,19 @@ class NixlConnectorWorker:
             set of req_ids that have all done xfers
         """
         done_req_ids: set[str] = set()
+        current_time = time.perf_counter()
+        
         for req_id, handles in list(transfers.items()):
             in_progress = False
-            for handle, _xfer_stime in handles:
+            total_transfer_time = 0.0
+            completed_handles = 0
+            
+            for handle, xfer_start_time in handles:
                 xfer_state = self.nixl_wrapper.check_xfer_state(handle)
                 if xfer_state == "DONE":
+                    transfer_duration = current_time - xfer_start_time
+                    total_transfer_time += transfer_duration
+                    completed_handles += 1
                     self.nixl_wrapper.release_xfer_handle(handle)
                 elif xfer_state == "PROC":
                     in_progress = True
@@ -1102,9 +1155,15 @@ class NixlConnectorWorker:
                 else:
                     raise RuntimeError("Transfer failed with state %s",
                                        xfer_state)
+            
             if not in_progress:
+                # All transfers for this request are done
                 done_req_ids.add(req_id)
                 del transfers[req_id]
+                # Store the total transfer time for this request
+                if completed_handles > 0:
+                    self._completed_transfer_times[req_id] = total_transfer_time
+                    
         return done_req_ids
 
     def start_load_kv(self, metadata: NixlConnectorMetadata):
@@ -1238,13 +1297,14 @@ class NixlConnectorWorker:
             notif_msg=notif_id,
         )
 
-        # Begin async xfer.
+        # Begin async xfer and record start time
+        xfer_start_time = time.perf_counter()
         self.nixl_wrapper.transfer(handle)
 
         # Use handle to check completion in future step().
-        # TODO (NickLucche) surface xfer elapsed time
+        # Store (handle, start_time) for timing calculation
         self._recving_transfers[request_id].append(
-            (handle, time.perf_counter()))
+            (handle, xfer_start_time))
 
     def _get_block_descs_ids(self,
                              engine_id: str,
@@ -1278,6 +1338,50 @@ class NixlConnectorWorker:
             for block_id in block_ids:
                 descs_ids.append(reg_id * num_blocks + block_id)
         return descs_ids
+
+    def get_and_clear_timing_data(self, req_ids: set[str]) -> dict[str, dict[str, float]]:
+        """
+        Extract and clear timing data for the specified request IDs.
+        
+        Args:
+            req_ids: Set of request IDs to extract timing data for
+            
+        Returns:
+            Dictionary mapping req_id to timing data, format:
+            {
+                "req_id": {
+                    "kv_transfer_time": float,  # seconds
+                    "host_buffer_sync_time": float,  # seconds, only for TPU/CPU buffer
+                }
+            }
+        """
+        timing_data = {}
+        
+        for req_id in req_ids:
+            req_timing = {}
+            
+            # Extract transfer time
+            if req_id in self._completed_transfer_times:
+                req_timing["kv_transfer_time"] = self._completed_transfer_times.pop(req_id)
+            else:
+                req_timing["kv_transfer_time"] = 0.0
+                
+            # Extract host buffer sync time (only relevant for TPU/CPU buffer scenarios)
+            if req_id in self._completed_host_buffer_sync_times:
+                req_timing["host_buffer_sync_time"] = self._completed_host_buffer_sync_times.pop(req_id)
+            else:
+                req_timing["host_buffer_sync_time"] = 0.0
+                
+            timing_data[req_id] = req_timing
+            
+        return timing_data
+
+    def has_timing_data(self, req_id: str) -> bool:
+        """Check if timing data is available for a request."""
+        return (req_id in self._completed_transfer_times or 
+                req_id in self._completed_host_buffer_sync_times)
+
+    # ...existing code...
 
 
 @contextlib.contextmanager

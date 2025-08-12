@@ -18,7 +18,7 @@ from vllm.v1.engine.detokenizer import IncrementalDetokenizer
 from vllm.v1.engine.logprobs import LogprobsProcessor
 from vllm.v1.engine.parallel_sampling import ParentRequest
 from vllm.v1.metrics.stats import (IterationStats, LoRARequestStates,
-                                   RequestStateStats)
+                                   RequestMetrics, RequestStateStats)
 
 
 class RequestOutputCollector:
@@ -168,6 +168,7 @@ class RequestState:
         stop_reason: Union[int, str, None],
         kv_transfer_params: Optional[dict[str, Any]] = None,
         num_cached_tokens: int = 0,
+        metrics: Optional["RequestMetrics"] = None,
     ) -> Optional[Union[RequestOutput, PoolingRequestOutput]]:
 
         finished = finish_reason is not None
@@ -181,7 +182,7 @@ class RequestState:
         if pooling_output is not None:
             return self._new_request_output(
                 request_id, [self._new_pooling_output(pooling_output)],
-                finished)
+                finished, metrics=metrics)
 
         output = self._new_completion_output(new_token_ids, finish_reason,
                                              stop_reason)
@@ -195,7 +196,7 @@ class RequestState:
                 return None
 
         return self._new_request_output(request_id, outputs, finished,
-                                        kv_transfer_params, num_cached_tokens)
+                                        kv_transfer_params, num_cached_tokens, metrics)
 
     def _new_request_output(
         self,
@@ -204,6 +205,7 @@ class RequestState:
         finished: bool,
         kv_transfer_params: Optional[dict[str, Any]] = None,
         num_cached_tokens: int = 0,
+        metrics: Optional["RequestMetrics"] = None,
     ) -> Union[RequestOutput, PoolingRequestOutput]:
 
         if isinstance(outputs[0], PoolingOutput):
@@ -230,9 +232,7 @@ class RequestState:
             finished=finished,
             kv_transfer_params=kv_transfer_params,
             num_cached_tokens=num_cached_tokens,
-            timing=self._get_timing() \
-                if self.stats.first_token_ts == self.stats.last_token_ts \
-                else None
+            timing=self._get_complete_timing(metrics),
         )
 
     def _new_completion_output(
@@ -273,8 +273,8 @@ class RequestState:
 
         return PoolingOutput(data=pooling_output)
 
-    def _get_timing(self) -> Optional[dict[str, float]]:
-        """Extract timing information from request stats."""
+    def _get_complete_timing(self, metrics: Optional[RequestMetrics]) -> Optional[dict[str, float]]:
+        """Extract complete timing information including KV transfer data."""
         if self.stats is None:
             return None
 
@@ -288,8 +288,14 @@ class RequestState:
         if stats.first_token_ts > 0 and stats.scheduled_ts > 0:
             timing["execute_time"] = stats.first_token_ts - stats.scheduled_ts
 
-        return timing
+        # Add KV transfer timing if available
+        if metrics:
+            if metrics.kv_transfer_time > 0:
+                timing["kv_transfer_time"] = metrics.kv_transfer_time
+            if metrics.host_buffer_sync_time > 0:
+                timing["host_buffer_sync_time"] = metrics.host_buffer_sync_time
 
+        return timing if timing else None
 
 class OutputProcessor:
     """Process EngineCoreOutputs into RequestOutputs."""
@@ -431,7 +437,7 @@ class OutputProcessor:
             # 4) Create and handle RequestOutput objects.
             if request_output := req_state.make_request_output(
                     new_token_ids, pooling_output, finish_reason, stop_reason,
-                    kv_transfer_params, num_cached_tokens):
+                    kv_transfer_params, num_cached_tokens, engine_core_output.metrics):
                 if req_state.queue is not None:
                     # AsyncLLM: put into queue for handling by generate().
                     req_state.queue.put(request_output)

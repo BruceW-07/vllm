@@ -219,6 +219,31 @@ class KVConnectorBase_V1(ABC):
         """
         return None, None
 
+    def get_and_clear_timing_data(self, req_ids: set[str]) -> dict[str, dict[str, float]]:
+        """
+        Extract and clear KV transfer timing data for the specified request IDs.
+        
+        Args:
+            req_ids: Set of request IDs to extract timing data for
+            
+        Returns:
+            Dictionary mapping req_id to timing data, format:
+            {
+                "req_id": {
+                    "kv_transfer_time": float,  # seconds
+                    "host_buffer_sync_time": float,  # seconds, device-specific
+                }
+            }
+        """
+        # Default implementation returns empty timing data
+        return {req_id: {"kv_transfer_time": 0.0, "host_buffer_sync_time": 0.0} 
+                for req_id in req_ids}
+
+    def has_timing_data(self, req_id: str) -> bool:
+        """Check if timing data is available for a request."""
+        # Default implementation returns False
+        return False
+
     # ==============================
     # Scheduler-side methods
     # ==============================

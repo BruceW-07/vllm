@@ -14,7 +14,7 @@ from vllm.multimodal import MultiModalKwargs
 from vllm.multimodal.inputs import PlaceholderRange
 from vllm.pooling_params import PoolingParams
 from vllm.sampling_params import SamplingParams
-from vllm.v1.metrics.stats import SchedulerStats
+from vllm.v1.metrics.stats import RequestMetrics, SchedulerStats
 from vllm.v1.outputs import LogprobsLists, LogprobsTensors
 
 # These are possible values of RequestOutput.finish_reason,
@@ -117,6 +117,9 @@ class EngineCoreOutput(
 
     # The number of tokens with prefix cache hits.
     num_cached_tokens: int = 0
+    
+    # Request-level metrics
+    metrics: Optional[RequestMetrics] = None
 
     @property
     def finished(self) -> bool:

@@ -50,6 +50,8 @@ class RequestFuncOutput:
     prefill_execute_time: Optional[float] = None
     decode_queued_time: Optional[float] = None
     decode_execute_time: Optional[float] = None
+    kv_transfer_time: Optional[float] = None
+    host_buffer_sync_time: Optional[float] = None
 
 
 async def async_request_openai_completions(
@@ -146,6 +148,10 @@ async def async_request_openai_completions(
                                             "decode_queued_time")
                                         output.decode_execute_time = timing.get(
                                             "decode_execute_time")
+                                        output.kv_transfer_time = timing.get(
+                                            "kv_transfer_time")
+                                        output.host_buffer_sync_time = timing.get(
+                                            "host_buffer_sync_time")
 
                                 # Decoding phase
                                 else:

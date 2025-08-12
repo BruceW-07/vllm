@@ -80,6 +80,19 @@ class FinishedRequestStats:
     decode_time: float = 0.0
 
 
+@dataclass
+class RequestMetrics:
+    """Metrics for a specific request."""
+
+    # Timing metrics (in seconds)
+    kv_transfer_time: float = 0.0
+    host_buffer_sync_time: float = 0.0  # Only relevant for TPU/CPU buffer scenarios
+    prefill_queued_time: float = 0.0
+    prefill_execute_time: float = 0.0
+    decode_queued_time: float = 0.0
+    decode_execute_time: float = 0.0
+
+
 class IterationStats:
     """Stats associated with a single set of EngineCoreOutputs."""
 
