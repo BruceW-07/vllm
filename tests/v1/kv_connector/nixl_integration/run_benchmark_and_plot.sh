@@ -36,14 +36,24 @@ bash "$SCRIPT_DIR/run_bench.sh" "$DATASET_NAME"
 
 # Step 2: Generate plots
 echo "Step 2: Generating plots..."
-RESULTS_DIR="$SCRIPT_DIR/results/$DATASET_NAME"
+RESULTS_BASE_DIR="$SCRIPT_DIR/results/$DATASET_NAME"
 
-if [[ ! -d "$RESULTS_DIR" ]]; then
-    echo "Error: Results directory not found: $RESULTS_DIR"
+if [[ ! -d "$RESULTS_BASE_DIR" ]]; then
+    echo "Error: Results base directory not found: $RESULTS_BASE_DIR"
     exit 1
 fi
 
-python3 "$SCRIPT_DIR/benchmark_plotter.py" plot --dir "$RESULTS_DIR"
+# Find the most recent timestamped directory
+LATEST_RESULTS_DIR=$(find "$RESULTS_BASE_DIR" -maxdepth 1 -type d -name "20*" | sort | tail -1)
+
+if [[ -z "$LATEST_RESULTS_DIR" ]]; then
+    echo "Error: No timestamped results directory found in $RESULTS_BASE_DIR"
+    exit 1
+fi
+
+echo "Using results from: $LATEST_RESULTS_DIR"
+
+python3 "$SCRIPT_DIR/benchmark_plotter.py" plot --dir "$LATEST_RESULTS_DIR"
 
 echo "=========================================="
 echo "Pipeline completed!"

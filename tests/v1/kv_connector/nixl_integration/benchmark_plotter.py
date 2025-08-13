@@ -316,6 +316,30 @@ def plot_vllm_fig9_style(result_dir: str = ".",
 
     if files_and_rates:
         print(f"Found {len(files_and_rates)} result files in {result_dir}")
+        
+        # Try to extract configuration info from the first result file
+        config_info = ""
+        try:
+            first_file = files_and_rates[0][0]
+            data = load_vllm_result(first_file)
+            
+            # Extract configuration from metadata if available
+            config_parts = []
+            if 'num_prefill_instances' in data:
+                config_parts.append(f"PF:{data['num_prefill_instances']}")
+            if 'num_decode_instances' in data:
+                config_parts.append(f"D:{data['num_decode_instances']}")
+            if 'prefiller_tp_size' in data:
+                config_parts.append(f"TP:{data['prefiller_tp_size']}x{data.get('decoder_tp_size', '?')}")
+            if 'dataset_name' in data:
+                config_parts.append(f"Dataset:{data['dataset_name']}")
+            
+            if config_parts:
+                config_info = f" ({', '.join(config_parts)})"
+                
+        except Exception as e:
+            print(f"Could not extract config info: {e}")
+        
         for filepath, qps in files_and_rates:
             print(f"  {os.path.basename(filepath)} -> {qps} QPS")
 
@@ -326,7 +350,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         draw_attainment_rate_plot(axs[0],
                                   result_files,
                                   request_rates,
-                                  [Backend("vllm", "vLLM", "C1")],
+                                  [Backend("vllm", f"vLLM{config_info}", "C1")],
                                   ttft_slo=ttft_slo,
                                   tpot_slo=tpot_slo,
                                   atta_target=atta_target,
@@ -337,7 +361,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         middle_idx = len(result_files) // 2
         draw_slo_scale_plot(axs[1],
                             result_files[middle_idx],
-                            Backend("vllm", "vLLM", "C1"),
+                            Backend("vllm", f"vLLM{config_info}", "C1"),
                             ttft_slo=ttft_slo,
                             tpot_slo=tpot_slo,
                             scales=[

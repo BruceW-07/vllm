@@ -20,6 +20,10 @@ GIT_ROOT=$(git rev-parse --show-toplevel)
 
 SMI_BIN=$(which nvidia-smi || which rocm-smi)
 
+# Benchmark configuration
+NUM_PROMPT="100"
+REQUEST_RATES=(0.5 1.0 2.0 4.0 8.0 16.0)
+
 # Trap the SIGINT signal (triggered by Ctrl+C)
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
 
@@ -64,6 +68,14 @@ run_tests_for_model() {
   local model_name="$1"
   echo "================================"
   echo "Testing model: $model_name"
+  echo "Configuration:"
+  echo "  Dataset: $DATASET_NAME"
+  echo "  Prefill instances: $NUM_PREFILL_INSTANCES"
+  echo "  Decode instances: $NUM_DECODE_INSTANCES"
+  echo "  Prefiller TP size: $PREFILLER_TP_SIZE"
+  echo "  Decoder TP size: $DECODER_TP_SIZE"
+  echo "  Prompts per test: $NUM_PROMPT"
+  echo "  Request rates: ${REQUEST_RATES[*]}"
   echo "================================"
 
   # Get model-specific arguments
@@ -173,18 +185,22 @@ run_tests_for_model() {
   sleep 5
 
   SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-  RESULTS_DIR="$SCRIPT_DIR/results/$DATASET_NAME"
-  mkdir -p "$RESULTS_DIR"
-
-  NUM_PROMPT="100"
   
-  # Define multiple request rates to test
-  REQUEST_RATES=(0.5 1.0 2.0 4.0 8.0 16.0)
+  # Create timestamped results directory to avoid conflicts
+  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+  RESULTS_BASE_DIR="$SCRIPT_DIR/results/$DATASET_NAME"
+  RESULTS_DIR="$RESULTS_BASE_DIR/$TIMESTAMP"
+  mkdir -p "$RESULTS_DIR"
+  
+  echo "Results will be saved to: $RESULTS_DIR"
 
   # Run bench test for each request rate
   for REQUEST_RATE in "${REQUEST_RATES[@]}"; do
     TS=$(date +%Y%m%d_%H%M%S)
     echo "Running vllm bench serve for $model_name with request rate $REQUEST_RATE"
+    
+    # Create a configuration suffix for the result filename
+    CONFIG_SUFFIX="pf${NUM_PREFILL_INSTANCES}d${NUM_DECODE_INSTANCES}tp${PREFILLER_TP_SIZE}x${DECODER_TP_SIZE}"
     
     vllm bench serve \
       --backend vllm \
@@ -198,7 +214,17 @@ run_tests_for_model() {
       --port $PROXY_PORT \
       --result-dir $RESULTS_DIR \
       --save-detailed \
-      --save-result
+      --save-result \
+      --metadata \
+        "num_prefill_instances=$NUM_PREFILL_INSTANCES" \
+        "num_decode_instances=$NUM_DECODE_INSTANCES" \
+        "prefiller_tp_size=$PREFILLER_TP_SIZE" \
+        "decoder_tp_size=$DECODER_TP_SIZE" \
+        "dataset_name=$DATASET_NAME" \
+        "config_suffix=$CONFIG_SUFFIX" \
+        "gpu_memory_utilization=0.2" \
+        "kv_connector=NixlConnector" \
+        "prefix_caching=disabled"
     
     echo "Completed benchmark with request rate $REQUEST_RATE"
     
