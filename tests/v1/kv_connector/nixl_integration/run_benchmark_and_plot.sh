@@ -66,7 +66,7 @@ PLOTS_DIR="$LATEST_RESULTS_DIR/plots"
 mkdir -p "$PLOTS_DIR"
 
 # Set environment variable to tell the plotter where to save plots
-PLOT_OUTPUT_DIR="$PLOTS_DIR" python3 "$SCRIPT_DIR/benchmark_plotter.py" plot \
+PLOT_OUTPUT_DIR="$PLOTS_DIR" python3 "$SCRIPT_DIR/benchmark_plotter.py" \
     --dir "$LATEST_RESULTS_DIR" \
     --ttft-slo "$TTFT_SLO" \
     --tpot-slo "$TPOT_SLO" \

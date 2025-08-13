@@ -143,7 +143,7 @@ def draw_attainment_rate_plot(
         ax.plot(xs,
                 ys_both,
                 label="Both TTFT & TPOT",
-                color="blue",
+                color="#5470c6",
                 marker="o",
                 linewidth=2,
                 markersize=6)
@@ -151,7 +151,7 @@ def draw_attainment_rate_plot(
                 ys_ttft,
                 label="TTFT only",
                 linestyle="-",
-                color="red",
+                color="#ee6666",
                 marker="s",
                 linewidth=2,
                 markersize=6)
@@ -159,7 +159,7 @@ def draw_attainment_rate_plot(
                 ys_tpot,
                 label="TPOT only",
                 linestyle="-",
-                color="green",
+                color="#73c0de",
                 marker="^",
                 linewidth=2,
                 markersize=6)
@@ -173,7 +173,7 @@ def draw_attainment_rate_plot(
                 inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
                 if inter_x is not None:
                     ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
-                             linestyles="--", colors="blue", alpha=0.8)
+                             linestyles="--", colors="#5470c6", alpha=0.8)
             except:
                 pass
                 
@@ -181,7 +181,7 @@ def draw_attainment_rate_plot(
                 inter_x_ttft, inter_y_ttft = find_intersection(xs, ys_ttft, atta_target)
                 if inter_x_ttft is not None:
                     ax.vlines(x=inter_x_ttft, ymin=0, ymax=inter_y_ttft,
-                             linestyles="--", colors="red", alpha=0.8)
+                             linestyles="--", colors="#ee6666", alpha=0.8)
             except:
                 pass
                 
@@ -189,7 +189,7 @@ def draw_attainment_rate_plot(
                 inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
                 if inter_x_tpot is not None:
                     ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
-                             linestyles="--", colors="green", alpha=0.8)
+                             linestyles="--", colors="#73c0de", alpha=0.8)
             except:
                 pass
                 
@@ -209,12 +209,6 @@ def draw_attainment_rate_plot(
                     pass
 
     ax.set_ylim(0, 105)
-    
-    # Add SLO value annotations if target is specified
-    if atta_target:
-        ax.text(0.02, atta_target + 2, f'Target: {atta_target}%', 
-               transform=ax.get_yaxis_transform(), 
-               fontsize=12, color='grey', alpha=0.8)
 
 
 def draw_slo_scale_plot(
@@ -269,7 +263,7 @@ def draw_slo_scale_plot(
         ax.plot(xs,
                 ys_both,
                 label="Both TTFT & TPOT",
-                color="blue",
+                color="#5470c6",
                 marker="o",
                 linewidth=2,
                 markersize=6)
@@ -277,7 +271,7 @@ def draw_slo_scale_plot(
                 ys_ttft,
                 label="TTFT only",
                 linestyle="-",
-                color="red",
+                color="#ee6666",
                 marker="s",
                 linewidth=2,
                 markersize=6)
@@ -285,7 +279,7 @@ def draw_slo_scale_plot(
                 ys_tpot,
                 label="TPOT only",
                 linestyle="-",
-                color="green",
+                color="#73c0de",
                 marker="^",
                 linewidth=2,
                 markersize=6)
@@ -299,7 +293,7 @@ def draw_slo_scale_plot(
                 inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
                 if inter_x is not None:
                     ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
-                             linestyles="--", colors="blue", alpha=0.8)
+                             linestyles="--", colors="#5470c6", alpha=0.8)
             except:
                 pass
                 
@@ -307,7 +301,7 @@ def draw_slo_scale_plot(
                 inter_x_ttft, inter_y_ttft = find_intersection(xs, ys_ttft, atta_target)
                 if inter_x_ttft is not None:
                     ax.vlines(x=inter_x_ttft, ymin=0, ymax=inter_y_ttft,
-                             linestyles="--", colors="red", alpha=0.8)
+                             linestyles="--", colors="#ee6666", alpha=0.8)
             except:
                 pass
                 
@@ -315,18 +309,12 @@ def draw_slo_scale_plot(
                 inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
                 if inter_x_tpot is not None:
                     ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
-                             linestyles="--", colors="green", alpha=0.8)
+                             linestyles="--", colors="#73c0de", alpha=0.8)
             except:
                 pass
 
     except Exception as e:
         print(f"Error processing {result_file}: {e}")
-    
-    # Add SLO value annotations if target is specified
-    if atta_target:
-        ax.text(0.02, atta_target + 2, f'Target: {atta_target}%', 
-               transform=ax.get_yaxis_transform(), 
-               fontsize=12, color='grey', alpha=0.8)
 
 
 def extract_qps_from_filename(filename: str) -> Optional[float]:
@@ -398,8 +386,13 @@ def plot_vllm_fig9_style(result_dir: str = ".",
             
             # Extract configuration for title
             title_parts = []
-            if 'model' in data:
-                title_parts.append(f"Model:{data['model']}")
+            if 'model_name' in data:
+                title_parts.append(f"Model:{data['model_name']}")
+            elif 'model' in data:
+                # Fallback to extracting from model path
+                model_path = data['model']
+                model_name = model_path.split('/')[-1] if '/' in model_path else model_path
+                title_parts.append(f"Model:{model_name}")
             if 'num_prefill_instances' in data and 'num_decode_instances' in data:
                 title_parts.append(f"PF:{data['num_prefill_instances']}, D:{data['num_decode_instances']}")
             if 'prefiller_tp_size' in data and 'decoder_tp_size' in data:
@@ -431,10 +424,12 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                                   tpot_slo=tpot_slo,
                                   atta_target=atta_target,
                                   show_ylabel=True)
-        axs[0].set_title(f"SLO Attainment vs Request Rate\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
+        axs[0].set_title(f"SLO Attainment vs Request Rate\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)", 
+                         fontsize=14, pad=20)
 
         # Second subplot: SLO scale plot using middle file
         middle_idx = len(result_files) // 2
+        middle_rate = request_rates[middle_idx]
         draw_slo_scale_plot(axs[1],
                             result_files[middle_idx],
                             Backend("vllm", "vLLM", "C1"),
@@ -446,10 +441,11 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                             ],
                             atta_target=atta_target,
                             show_ylabel=True)
-        axs[1].set_title(f"SLO Attainment vs SLO Scale\n(Base: TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
+        axs[1].set_title(f"SLO Attainment vs SLO Scale (Request Rate: {middle_rate:.1f} req/s)\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)", 
+                         fontsize=14, pad=20)
 
         # Add overall title (closer to subplots)
-        fig.suptitle(title_info, fontsize=18, y=0.94)
+        fig.suptitle(title_info, fontsize=18, y=0.97)
 
         # Add simplified legend centered at the bottom (closer to subplots)
         handles, labels = axs[0].get_legend_handles_labels()
@@ -472,8 +468,8 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         return
 
     # Adjust layout to accommodate title and legend with more space for plots
-    plt.subplots_adjust(top=0.87, bottom=0.20)
-    plt.tight_layout(rect=[0, 0.17, 1, 0.89])
+    plt.subplots_adjust(top=0.90, bottom=0.20)
+    plt.tight_layout(rect=[0, 0.17, 1, 0.92])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
@@ -495,93 +491,6 @@ def plot_vllm_fig9_style(result_dir: str = ".",
     # plt.show()
 
 
-def plot_custom(files_and_rates: List[Tuple[str, float]],
-                ttft_slo: float,
-                tpot_slo: float,
-                output_file: str = "custom_plots.pdf"):
-    """
-    Create custom plots with specified files and SLO values
-    
-    Args:
-        files_and_rates: List of (filename, request_rate) tuples
-        ttft_slo: TTFT SLO threshold in ms
-        tpot_slo: TPOT SLO threshold in ms
-        output_file: Output PDF filename (will be saved in plots/ subdirectory)
-    """
-    if not HAS_PLOTTING:
-        print("Cannot create plots - matplotlib/numpy not available")
-        return
-
-    plt.rcParams.update({'font.size': 14})
-    fig, axs = plt.subplots(1, 2, figsize=(16, 8))
-
-    result_files = [f for f, r in files_and_rates]
-    request_rates = [r for f, r in files_and_rates]
-
-    # Attainment rate plot
-    draw_attainment_rate_plot(axs[0],
-                              result_files,
-                              request_rates, [Backend("vllm", "vLLM", "C1")],
-                              ttft_slo=ttft_slo,
-                              tpot_slo=tpot_slo,
-                              atta_target=90,
-                              show_ylabel=True)
-    axs[0].set_title(f"SLO Attainment vs Request Rate\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
-
-    # SLO scale plot using the last file
-    if result_files:
-        draw_slo_scale_plot(
-            axs[1],
-            result_files[-1],
-            Backend("vllm", "vLLM", "C1"),
-            ttft_slo=ttft_slo,
-            tpot_slo=tpot_slo,
-            scales=[2.0, 1.8, 1.6, 1.4, 1.2, 1.0, 0.8, 0.6, 0.4],
-            atta_target=90,
-            show_ylabel=True)
-        axs[1].set_title(f"SLO Attainment vs SLO Scale\n(Base: TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
-
-    # Add simplified legend for custom plots
-    handles, labels = axs[0].get_legend_handles_labels()
-    # Only show unique labels 
-    unique_labels = []
-    unique_handles = []
-    for handle, label in zip(handles, labels):
-        if label not in unique_labels:
-            unique_labels.append(label)
-            unique_handles.append(handle)
-    
-    fig.legend(unique_handles, unique_labels, 
-               loc='lower center', 
-               bbox_to_anchor=(0.5, 0.08),
-               ncol=3, 
-               frameon=False,
-               fontsize=12)
-
-    # Proper layout adjustment with more space for plots
-    plt.subplots_adjust(bottom=0.18)
-    plt.tight_layout(rect=[0, 0.15, 1, 1])
-
-    # Check if output directory is specified via environment variable
-    custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
-    
-    if custom_output_dir:
-        # Use the specified directory
-        plots_dir = custom_output_dir
-        os.makedirs(plots_dir, exist_ok=True)
-    else:
-        # Create plots directory if it doesn't exist (default behavior)
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        plots_dir = os.path.join(script_dir, "plots")
-        os.makedirs(plots_dir, exist_ok=True)
-
-    output_path = os.path.join(plots_dir, output_file)
-    plt.savefig(output_path, bbox_inches="tight")
-    print(f"Plots saved to {output_path}")
-    # Don't show plot in headless environment
-    # plt.show()
-
-
 def main():
     import argparse
 
@@ -591,13 +500,10 @@ def main():
         epilog="""
 Examples:
   # Basic usage with default parameters
-  python vllm_plot.py plot --dir /path/to/results
+  python benchmark_plotter.py plot --dir /path/to/results
   
   # Custom SLO thresholds
-  python vllm_plot.py plot --dir /path/to/results --ttft-slo 100 --tpot-slo 150 --target 95
-  
-  # Custom plots with manual file specification
-  python vllm_plot.py custom --ttft-slo 125 --tpot-slo 200 --files result1.json:2.0 result2.json:4.0
+  python benchmark_plotter.py plot --dir /path/to/results --ttft-slo 100 --tpot-slo 150 --target 95
 
 Notes:
 - Use vLLM serve.py with --save-result --save-detailed to generate result files
@@ -606,80 +512,34 @@ Notes:
 - File names should contain QPS values like: 'vllm-2.5qps-model-date.json'
         """)
 
-    subparsers = parser.add_subparsers(dest='command',
-                                       help='Available commands')
-
-    # Plot command
-    plot_parser = subparsers.add_parser(
-        'plot', help='Generate plots from result files')
-    plot_parser.add_argument(
+    # Plot command (no subparsers needed for single command)
+    parser.add_argument(
         '--dir',
         '-d',
         default='.',
         help='Directory containing result files (default: current directory)')
-    plot_parser.add_argument(
+    parser.add_argument(
         '--ttft-slo',
         type=float,
         default=125.0,
         help='TTFT SLO threshold in milliseconds (default: 125)')
-    plot_parser.add_argument(
+    parser.add_argument(
         '--tpot-slo',
         type=float,
         default=200.0,
         help='TPOT SLO threshold in milliseconds (default: 200)')
-    plot_parser.add_argument(
+    parser.add_argument(
         '--target',
         type=float,
         default=90.0,
         help='Target attainment rate percentage (default: 90)')
 
-    # Custom command
-    custom_parser = subparsers.add_parser(
-        'custom', help='Create custom plots with specified files')
-    custom_parser.add_argument('--ttft-slo',
-                               type=float,
-                               required=True,
-                               help='TTFT SLO threshold in milliseconds')
-    custom_parser.add_argument('--tpot-slo',
-                               type=float,
-                               required=True,
-                               help='TPOT SLO threshold in milliseconds')
-    custom_parser.add_argument(
-        '--files',
-        nargs='+',
-        required=True,
-        help='Files with rates in format: file1.json:rate1 file2.json:rate2')
-    custom_parser.add_argument(
-        '--output',
-        default='custom_plots.pdf',
-        help=
-        'Output PDF filename (default: custom_plots.pdf, saved in plots/ subdirectory)'
-    )
-
     args = parser.parse_args()
 
-    if not args.command:
-        parser.print_help()
-        sys.exit(1)
-
-    if args.command == "plot":
-        plot_vllm_fig9_style(result_dir=args.dir,
-                             ttft_slo=args.ttft_slo,
-                             tpot_slo=args.tpot_slo,
-                             atta_target=args.target)
-
-    elif args.command == "custom":
-        files_and_rates = []
-        for file_rate in args.files:
-            if ':' not in file_rate:
-                print(
-                    f"Invalid format: {file_rate}. Use filename:rate format.")
-                sys.exit(1)
-            filename, rate_str = file_rate.split(':', 1)
-            rate = float(rate_str)
-            files_and_rates.append((filename, rate))
-
-        plot_custom(files_and_rates, args.ttft_slo, args.tpot_slo, args.output)
+    plot_vllm_fig9_style(result_dir=args.dir,
+                         ttft_slo=args.ttft_slo,
+                         tpot_slo=args.tpot_slo,
+                         atta_target=args.target)
 
 
 if __name__ == "__main__":

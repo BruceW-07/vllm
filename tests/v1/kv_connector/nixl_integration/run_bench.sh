@@ -202,6 +202,9 @@ run_tests_for_model() {
     # Create a configuration suffix for the result filename
     CONFIG_SUFFIX="pf${NUM_PREFILL_INSTANCES}d${NUM_DECODE_INSTANCES}tp${PREFILLER_TP_SIZE}x${DECODER_TP_SIZE}"
     
+    # Extract model name from model path (last part after /)
+    MODEL_NAME=$(basename "$model_name")
+    
     vllm bench serve \
       --backend vllm \
       --model "$model_name" \
@@ -221,6 +224,7 @@ run_tests_for_model() {
         "prefiller_tp_size=$PREFILLER_TP_SIZE" \
         "decoder_tp_size=$DECODER_TP_SIZE" \
         "dataset_name=$DATASET_NAME" \
+        "model_name=$MODEL_NAME" \
         "config_suffix=$CONFIG_SUFFIX" \
         "gpu_memory_utilization=0.2" \
         "kv_connector=NixlConnector" \
