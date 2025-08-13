@@ -592,6 +592,7 @@ async def benchmark(
         "input_lens": [output.prompt_len for output in outputs],
         "output_lens": actual_output_lens,
         "ttfts": [output.ttft for output in outputs],
+        "tpots": [(outputs[i].latency - outputs[i].ttft) / (actual_output_lens[i] - 1) if actual_output_lens[i] > 1 else 0.0 for i in range(len(outputs)) if outputs[i].success],
         "itls": [output.itl for output in outputs],
         "generated_texts": [output.generated_text for output in outputs],
         "errors": [output.error for output in outputs],
@@ -714,7 +715,7 @@ def save_to_pytorch_benchmark_format(args: argparse.Namespace,
     # These raw data might be useful, but they are rather big. They can be added
     # later if needed
     ignored_metrics = [
-        "ttfts", "itls", "generated_texts", "errors", 
+        "ttfts", "tpots", "itls", "generated_texts", "errors", 
         "prefill_queue_times", "prefill_execute_times",
         "decode_queue_times", "decode_execute_times",
     ]
@@ -1149,6 +1150,7 @@ def main(args: argparse.Namespace):
                     "input_lens",
                     "output_lens",
                     "ttfts",
+                    "tpots",
                     "itls",
                     "generated_texts",
                     "errors",
