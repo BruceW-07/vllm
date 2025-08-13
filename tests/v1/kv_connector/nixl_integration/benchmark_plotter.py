@@ -65,7 +65,7 @@ def get_attainment(ttfts: List[float], tpots: List[float],
 
 
 def find_intersection(xs: List[float], ys: List[float],
-                      target_y: float) -> Tuple[float, float]:
+                      target_y: float) -> Tuple[Optional[float], Optional[float]]:
     """Find intersection point of curve with horizontal line at target_y"""
     for index in range(len(xs) - 1):
         x0, x1 = xs[index], xs[index + 1]
@@ -76,10 +76,8 @@ def find_intersection(xs: List[float], ys: List[float],
             inter_x = (target_y - y0) * (x1 - x0) / (y1 - y0) + x0
             return (inter_x, target_y)
 
-    print(
-        f"WARNING: Intersection point not found! xs: {xs}, ys: {ys}, target_y: {target_y}"
-    )
-    return (xs[0], target_y)
+    # No intersection found
+    return (None, None)
 
 
 def draw_attainment_rate_plot(
@@ -141,39 +139,71 @@ def draw_attainment_rate_plot(
                 ys_ttft.append(0)
                 ys_tpot.append(0)
 
-        # Plot lines with simplified labels
+        # Plot lines with different colors and markers
         ax.plot(xs,
                 ys_both,
                 label="Both TTFT & TPOT",
-                color=backend.color,
-                marker=backend.marker)
+                color="C0",
+                marker="o",
+                linewidth=2)
         ax.plot(xs,
                 ys_ttft,
                 label="TTFT only",
                 linestyle=":",
-                color=backend.color,
-                marker=backend.marker)
+                color="C1",
+                marker="s",
+                linewidth=2)
         ax.plot(xs,
                 ys_tpot,
                 label="TPOT only",
                 linestyle="--",
-                color=backend.color,
-                marker=backend.marker)
+                color="C2",
+                marker="^",
+                linewidth=2)
 
         if atta_target:
-            inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
-            ax.vlines(x=inter_x,
-                      ymin=0,
-                      ymax=inter_y,
-                      linestyles="--",
-                      colors=backend.color)
-            ax.axhline(y=atta_target, color="grey", linestyle="--")
+            # Draw target line
+            ax.axhline(y=atta_target, color="grey", linestyle="--", alpha=0.7)
+            
+            # Check and draw intersection lines for each curve
+            try:
+                inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
+                if inter_x is not None:
+                    ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
+                             linestyles="--", colors="C0", alpha=0.8)
+            except:
+                pass
+                
+            try:
+                inter_x_ttft, inter_y_ttft = find_intersection(xs, ys_ttft, atta_target)
+                if inter_x_ttft is not None:
+                    ax.vlines(x=inter_x_ttft, ymin=0, ymax=inter_y_ttft,
+                             linestyles="--", colors="C1", alpha=0.8)
+            except:
+                pass
+                
+            try:
+                inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
+                if inter_x_tpot is not None:
+                    ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
+                             linestyles="--", colors="C2", alpha=0.8)
+            except:
+                pass
+                
             if first_inter_x == -1:
-                first_inter_x = inter_x
+                try:
+                    first_inter_x, _ = find_intersection(xs, ys_both, atta_target)
+                except:
+                    pass
             else:
-                print(
-                    f"Improvement ({backends[0].label} compared to {backend.label}): {first_inter_x/inter_x}"
-                )
+                try:
+                    current_inter_x, _ = find_intersection(xs, ys_both, atta_target)
+                    if current_inter_x is not None and first_inter_x is not None:
+                        print(
+                            f"Improvement ({backends[0].label} compared to {backend.label}): {first_inter_x/current_inter_x}"
+                        )
+                except:
+                    pass
 
     ax.set_ylim(0, 105)
 
@@ -226,33 +256,56 @@ def draw_slo_scale_plot(
             ys_tpot.append(get_attainment(ttfts, tpots, None,
                                           tpot_slo * scale))
 
-        # Plot lines with simplified labels
+        # Plot lines with different colors and markers
         ax.plot(xs,
                 ys_both,
                 label="Both TTFT & TPOT",
-                color=backend.color,
-                marker=backend.marker)
+                color="C0",
+                marker="o",
+                linewidth=2)
         ax.plot(xs,
                 ys_ttft,
                 label="TTFT only",
                 linestyle=":",
-                color=backend.color,
-                marker=backend.marker)
+                color="C1",
+                marker="s",
+                linewidth=2)
         ax.plot(xs,
                 ys_tpot,
                 label="TPOT only",
                 linestyle="--",
-                color=backend.color,
-                marker=backend.marker)
+                color="C2",
+                marker="^",
+                linewidth=2)
 
         if atta_target:
-            inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
-            ax.vlines(x=inter_x,
-                      ymin=0,
-                      ymax=inter_y,
-                      linestyles="--",
-                      colors=backend.color)
-            ax.axhline(y=atta_target, color="grey", linestyle="--")
+            # Draw target line
+            ax.axhline(y=atta_target, color="grey", linestyle="--", alpha=0.7)
+            
+            # Check and draw intersection lines for each curve
+            try:
+                inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
+                if inter_x is not None:
+                    ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
+                             linestyles="--", colors="C0", alpha=0.8)
+            except:
+                pass
+                
+            try:
+                inter_x_ttft, inter_y_ttft = find_intersection(xs, ys_ttft, atta_target)
+                if inter_x_ttft is not None:
+                    ax.vlines(x=inter_x_ttft, ymin=0, ymax=inter_y_ttft,
+                             linestyles="--", colors="C1", alpha=0.8)
+            except:
+                pass
+                
+            try:
+                inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
+                if inter_x_tpot is not None:
+                    ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
+                             linestyles="--", colors="C2", alpha=0.8)
+            except:
+                pass
 
     except Exception as e:
         print(f"Error processing {result_file}: {e}")
@@ -327,6 +380,8 @@ def plot_vllm_fig9_style(result_dir: str = ".",
             
             # Extract configuration for title
             title_parts = []
+            if 'model' in data:
+                title_parts.append(f"Model:{data['model']}")
             if 'num_prefill_instances' in data and 'num_decode_instances' in data:
                 title_parts.append(f"PF:{data['num_prefill_instances']}, D:{data['num_decode_instances']}")
             if 'prefiller_tp_size' in data and 'decoder_tp_size' in data:
@@ -375,10 +430,10 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                             show_ylabel=True)
         axs[1].set_title("SLO Attainment vs SLO Scale")
 
-        # Add overall title
-        fig.suptitle(title_info, fontsize=18, y=0.95)
+        # Add overall title (closer to subplots)
+        fig.suptitle(title_info, fontsize=18, y=0.92)
 
-        # Add simplified legend centered at the bottom
+        # Add simplified legend centered at the bottom (closer to subplots)
         handles, labels = axs[0].get_legend_handles_labels()
         # Only show unique labels (remove duplicates from second subplot)
         unique_labels = []
@@ -390,7 +445,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         
         fig.legend(unique_handles, unique_labels, 
                    loc='lower center', 
-                   bbox_to_anchor=(0.5, 0.02),
+                   bbox_to_anchor=(0.5, 0.05),
                    ncol=3, 
                    frameon=False,
                    fontsize=14)
@@ -399,8 +454,8 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         return
 
     # Adjust layout to accommodate title and legend with more space for plots
-    plt.subplots_adjust(top=0.88, bottom=0.15)
-    plt.tight_layout(rect=[0, 0.12, 1, 0.9])
+    plt.subplots_adjust(top=0.85, bottom=0.18)
+    plt.tight_layout(rect=[0, 0.15, 1, 0.87])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
@@ -480,14 +535,14 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
     
     fig.legend(unique_handles, unique_labels, 
                loc='lower center', 
-               bbox_to_anchor=(0.5, 0.02),
+               bbox_to_anchor=(0.5, 0.05),
                ncol=3, 
                frameon=False,
                fontsize=12)
 
     # Proper layout adjustment with more space for plots
-    plt.subplots_adjust(bottom=0.12)
-    plt.tight_layout(rect=[0, 0.10, 1, 1])
+    plt.subplots_adjust(bottom=0.15)
+    plt.tight_layout(rect=[0, 0.12, 1, 1])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
