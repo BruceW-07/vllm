@@ -15,6 +15,11 @@ NUM_DECODE_INSTANCES=${NUM_DECODE_INSTANCES:-1}   # Default to 1
 PREFILLER_TP_SIZE=${PREFILLER_TP_SIZE:-1}
 DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
+# Plotting parameters
+TTFT_SLO=${TTFT_SLO:-125}  # milliseconds
+TPOT_SLO=${TPOT_SLO:-200}  # milliseconds
+TARGET_ATTAINMENT=${TARGET_ATTAINMENT:-90}  # percentage
+
 echo "=========================================="
 echo "Running vLLM Benchmark and Plotting"
 echo "Dataset: $DATASET_NAME"
@@ -22,6 +27,9 @@ echo "Prefill instances: $NUM_PREFILL_INSTANCES"
 echo "Decode instances: $NUM_DECODE_INSTANCES"
 echo "Prefiller TP size: $PREFILLER_TP_SIZE"
 echo "Decoder TP size: $DECODER_TP_SIZE"
+echo "TTFT SLO: ${TTFT_SLO}ms"
+echo "TPOT SLO: ${TPOT_SLO}ms"
+echo "Target attainment: ${TARGET_ATTAINMENT}%"
 echo "=========================================="
 
 # Step 1: Run benchmark
@@ -53,10 +61,19 @@ fi
 
 echo "Using results from: $LATEST_RESULTS_DIR"
 
-python3 "$SCRIPT_DIR/benchmark_plotter.py" plot --dir "$LATEST_RESULTS_DIR"
+# Create plots directory in the same timestamped folder
+PLOTS_DIR="$LATEST_RESULTS_DIR/plots"
+mkdir -p "$PLOTS_DIR"
+
+# Set environment variable to tell the plotter where to save plots
+PLOT_OUTPUT_DIR="$PLOTS_DIR" python3 "$SCRIPT_DIR/benchmark_plotter.py" plot \
+    --dir "$LATEST_RESULTS_DIR" \
+    --ttft-slo "$TTFT_SLO" \
+    --tpot-slo "$TPOT_SLO" \
+    --target "$TARGET_ATTAINMENT"
 
 echo "=========================================="
 echo "Pipeline completed!"
-echo "Results: $SCRIPT_DIR/results/"
-echo "Plots: $SCRIPT_DIR/plots/"
+echo "Results: $LATEST_RESULTS_DIR"
+echo "Plots: $PLOTS_DIR"
 echo "=========================================="

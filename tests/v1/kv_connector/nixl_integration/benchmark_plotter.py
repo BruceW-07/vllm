@@ -4,9 +4,11 @@ vLLM Benchmark Result Plotting Script
 类似于 DistServe _plot.py 的功能，用于绘制 vLLM benchmark 结果
 """
 
+import argparse
 import dataclasses
 import json
 import os
+import re
 import sys
 from typing import List, Optional, Tuple
 
@@ -139,21 +141,21 @@ def draw_attainment_rate_plot(
                 ys_ttft.append(0)
                 ys_tpot.append(0)
 
-        # Plot lines
+        # Plot lines with simplified labels
         ax.plot(xs,
                 ys_both,
-                label=backend.label,
+                label="Both TTFT & TPOT",
                 color=backend.color,
                 marker=backend.marker)
         ax.plot(xs,
                 ys_ttft,
-                label=backend.label + "-TTFT",
+                label="TTFT only",
                 linestyle=":",
                 color=backend.color,
                 marker=backend.marker)
         ax.plot(xs,
                 ys_tpot,
-                label=backend.label + "-TPOT",
+                label="TPOT only",
                 linestyle="--",
                 color=backend.color,
                 marker=backend.marker)
@@ -224,21 +226,21 @@ def draw_slo_scale_plot(
             ys_tpot.append(get_attainment(ttfts, tpots, None,
                                           tpot_slo * scale))
 
-        # Plot lines
+        # Plot lines with simplified labels
         ax.plot(xs,
                 ys_both,
-                label=backend.label,
+                label="Both TTFT & TPOT",
                 color=backend.color,
                 marker=backend.marker)
         ax.plot(xs,
                 ys_ttft,
-                label=backend.label + "-TTFT",
+                label="TTFT only",
                 linestyle=":",
                 color=backend.color,
                 marker=backend.marker)
         ax.plot(xs,
                 ys_tpot,
-                label=backend.label + "-TPOT",
+                label="TPOT only",
                 linestyle="--",
                 color=backend.color,
                 marker=backend.marker)
@@ -317,29 +319,30 @@ def plot_vllm_fig9_style(result_dir: str = ".",
     if files_and_rates:
         print(f"Found {len(files_and_rates)} result files in {result_dir}")
         
-        # Try to extract configuration info from the first result file
-        config_info = ""
+        # Build comprehensive title with configuration info
+        title_info = ""
         try:
             first_file = files_and_rates[0][0]
             data = load_vllm_result(first_file)
             
-            # Extract configuration from metadata if available
-            config_parts = []
-            if 'num_prefill_instances' in data:
-                config_parts.append(f"PF:{data['num_prefill_instances']}")
-            if 'num_decode_instances' in data:
-                config_parts.append(f"D:{data['num_decode_instances']}")
-            if 'prefiller_tp_size' in data:
-                config_parts.append(f"TP:{data['prefiller_tp_size']}x{data.get('decoder_tp_size', '?')}")
+            # Extract configuration for title
+            title_parts = []
+            if 'num_prefill_instances' in data and 'num_decode_instances' in data:
+                title_parts.append(f"PF:{data['num_prefill_instances']}, D:{data['num_decode_instances']}")
+            if 'prefiller_tp_size' in data and 'decoder_tp_size' in data:
+                title_parts.append(f"TP:{data['prefiller_tp_size']}x{data['decoder_tp_size']}")
             if 'dataset_name' in data:
-                config_parts.append(f"Dataset:{data['dataset_name']}")
+                title_parts.append(f"Dataset:{data['dataset_name']}")
             
-            if config_parts:
-                config_info = f" ({', '.join(config_parts)})"
+            if title_parts:
+                title_info = f"vLLM Benchmark Results ({', '.join(title_parts)})"
+            else:
+                title_info = "vLLM Benchmark Results"
                 
         except Exception as e:
-            print(f"Could not extract config info: {e}")
-        
+            title_info = "vLLM Benchmark Results"
+            print(f"Could not extract config for title: {e}")
+
         for filepath, qps in files_and_rates:
             print(f"  {os.path.basename(filepath)} -> {qps} QPS")
 
@@ -350,7 +353,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         draw_attainment_rate_plot(axs[0],
                                   result_files,
                                   request_rates,
-                                  [Backend("vllm", f"vLLM{config_info}", "C1")],
+                                  [Backend("vllm", "vLLM", "C1")],
                                   ttft_slo=ttft_slo,
                                   tpot_slo=tpot_slo,
                                   atta_target=atta_target,
@@ -361,7 +364,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         middle_idx = len(result_files) // 2
         draw_slo_scale_plot(axs[1],
                             result_files[middle_idx],
-                            Backend("vllm", f"vLLM{config_info}", "C1"),
+                            Backend("vllm", "vLLM", "C1"),
                             ttft_slo=ttft_slo,
                             tpot_slo=tpot_slo,
                             scales=[
@@ -372,27 +375,50 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                             show_ylabel=True)
         axs[1].set_title("SLO Attainment vs SLO Scale")
 
-        # Add legend
-        fig.legend(frameon=False,
-                   bbox_to_anchor=(0.88, 1.1, 0, 0),
-                   ncol=6,
-                   bbox_transform=plt.gcf().transFigure,
-                   columnspacing=1)
+        # Add overall title
+        fig.suptitle(title_info, fontsize=16, y=0.98)
+
+        # Add simplified legend centered at the bottom
+        handles, labels = axs[0].get_legend_handles_labels()
+        # Only show unique labels (remove duplicates from second subplot)
+        unique_labels = []
+        unique_handles = []
+        for handle, label in zip(handles, labels):
+            if label not in unique_labels:
+                unique_labels.append(label)
+                unique_handles.append(handle)
+        
+        fig.legend(unique_handles, unique_labels, 
+                   loc='lower center', 
+                   bbox_to_anchor=(0.5, -0.05),
+                   ncol=3, 
+                   frameon=False)
     else:
         print(f"No result files found in {result_dir}")
         return
 
+    # Adjust layout to accommodate title and legend
     plt.tight_layout()
+    plt.subplots_adjust(top=0.9, bottom=0.15)
 
-    # Create plots directory if it doesn't exist
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    plots_dir = os.path.join(script_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
+    # Check if output directory is specified via environment variable
+    custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
+    
+    if custom_output_dir:
+        # Use the specified directory
+        plots_dir = custom_output_dir
+        os.makedirs(plots_dir, exist_ok=True)
+    else:
+        # Create plots directory if it doesn't exist (default behavior)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        plots_dir = os.path.join(script_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
 
     output_path = os.path.join(plots_dir, "vllm_benchmark_plots.pdf")
     plt.savefig(output_path, bbox_inches="tight")
     print(f"Plot saved to {output_path}")
-    plt.show()
+    # Don't show plot in headless environment
+    # plt.show()
 
 
 def plot_custom(files_and_rates: List[Tuple[str, float]],
@@ -443,15 +469,24 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
 
     plt.tight_layout()
 
-    # Create plots directory if it doesn't exist
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    plots_dir = os.path.join(script_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
+    # Check if output directory is specified via environment variable
+    custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
+    
+    if custom_output_dir:
+        # Use the specified directory
+        plots_dir = custom_output_dir
+        os.makedirs(plots_dir, exist_ok=True)
+    else:
+        # Create plots directory if it doesn't exist (default behavior)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        plots_dir = os.path.join(script_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
 
     output_path = os.path.join(plots_dir, output_file)
     plt.savefig(output_path, bbox_inches="tight")
     print(f"Plots saved to {output_path}")
-    plt.show()
+    # Don't show plot in headless environment
+    # plt.show()
 
 
 def main():
