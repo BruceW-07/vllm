@@ -143,23 +143,26 @@ def draw_attainment_rate_plot(
         ax.plot(xs,
                 ys_both,
                 label="Both TTFT & TPOT",
-                color="C0",
+                color="blue",
                 marker="o",
-                linewidth=2)
+                linewidth=2,
+                markersize=6)
         ax.plot(xs,
                 ys_ttft,
                 label="TTFT only",
-                linestyle=":",
-                color="C1",
+                linestyle="-",
+                color="red",
                 marker="s",
-                linewidth=2)
+                linewidth=2,
+                markersize=6)
         ax.plot(xs,
                 ys_tpot,
                 label="TPOT only",
-                linestyle="--",
-                color="C2",
+                linestyle="-",
+                color="green",
                 marker="^",
-                linewidth=2)
+                linewidth=2,
+                markersize=6)
 
         if atta_target:
             # Draw target line
@@ -170,7 +173,7 @@ def draw_attainment_rate_plot(
                 inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
                 if inter_x is not None:
                     ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
-                             linestyles="--", colors="C0", alpha=0.8)
+                             linestyles="--", colors="blue", alpha=0.8)
             except:
                 pass
                 
@@ -178,7 +181,7 @@ def draw_attainment_rate_plot(
                 inter_x_ttft, inter_y_ttft = find_intersection(xs, ys_ttft, atta_target)
                 if inter_x_ttft is not None:
                     ax.vlines(x=inter_x_ttft, ymin=0, ymax=inter_y_ttft,
-                             linestyles="--", colors="C1", alpha=0.8)
+                             linestyles="--", colors="red", alpha=0.8)
             except:
                 pass
                 
@@ -186,7 +189,7 @@ def draw_attainment_rate_plot(
                 inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
                 if inter_x_tpot is not None:
                     ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
-                             linestyles="--", colors="C2", alpha=0.8)
+                             linestyles="--", colors="green", alpha=0.8)
             except:
                 pass
                 
@@ -206,6 +209,12 @@ def draw_attainment_rate_plot(
                     pass
 
     ax.set_ylim(0, 105)
+    
+    # Add SLO value annotations if target is specified
+    if atta_target:
+        ax.text(0.02, atta_target + 2, f'Target: {atta_target}%', 
+               transform=ax.get_yaxis_transform(), 
+               fontsize=12, color='grey', alpha=0.8)
 
 
 def draw_slo_scale_plot(
@@ -260,23 +269,26 @@ def draw_slo_scale_plot(
         ax.plot(xs,
                 ys_both,
                 label="Both TTFT & TPOT",
-                color="C0",
+                color="blue",
                 marker="o",
-                linewidth=2)
+                linewidth=2,
+                markersize=6)
         ax.plot(xs,
                 ys_ttft,
                 label="TTFT only",
-                linestyle=":",
-                color="C1",
+                linestyle="-",
+                color="red",
                 marker="s",
-                linewidth=2)
+                linewidth=2,
+                markersize=6)
         ax.plot(xs,
                 ys_tpot,
                 label="TPOT only",
-                linestyle="--",
-                color="C2",
+                linestyle="-",
+                color="green",
                 marker="^",
-                linewidth=2)
+                linewidth=2,
+                markersize=6)
 
         if atta_target:
             # Draw target line
@@ -287,7 +299,7 @@ def draw_slo_scale_plot(
                 inter_x, inter_y = find_intersection(xs, ys_both, atta_target)
                 if inter_x is not None:
                     ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
-                             linestyles="--", colors="C0", alpha=0.8)
+                             linestyles="--", colors="blue", alpha=0.8)
             except:
                 pass
                 
@@ -295,7 +307,7 @@ def draw_slo_scale_plot(
                 inter_x_ttft, inter_y_ttft = find_intersection(xs, ys_ttft, atta_target)
                 if inter_x_ttft is not None:
                     ax.vlines(x=inter_x_ttft, ymin=0, ymax=inter_y_ttft,
-                             linestyles="--", colors="C1", alpha=0.8)
+                             linestyles="--", colors="red", alpha=0.8)
             except:
                 pass
                 
@@ -303,12 +315,18 @@ def draw_slo_scale_plot(
                 inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
                 if inter_x_tpot is not None:
                     ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
-                             linestyles="--", colors="C2", alpha=0.8)
+                             linestyles="--", colors="green", alpha=0.8)
             except:
                 pass
 
     except Exception as e:
         print(f"Error processing {result_file}: {e}")
+    
+    # Add SLO value annotations if target is specified
+    if atta_target:
+        ax.text(0.02, atta_target + 2, f'Target: {atta_target}%', 
+               transform=ax.get_yaxis_transform(), 
+               fontsize=12, color='grey', alpha=0.8)
 
 
 def extract_qps_from_filename(filename: str) -> Optional[float]:
@@ -413,7 +431,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                                   tpot_slo=tpot_slo,
                                   atta_target=atta_target,
                                   show_ylabel=True)
-        axs[0].set_title("SLO Attainment vs Request Rate")
+        axs[0].set_title(f"SLO Attainment vs Request Rate\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
 
         # Second subplot: SLO scale plot using middle file
         middle_idx = len(result_files) // 2
@@ -428,10 +446,10 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                             ],
                             atta_target=atta_target,
                             show_ylabel=True)
-        axs[1].set_title("SLO Attainment vs SLO Scale")
+        axs[1].set_title(f"SLO Attainment vs SLO Scale\n(Base: TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
 
         # Add overall title (closer to subplots)
-        fig.suptitle(title_info, fontsize=18, y=0.92)
+        fig.suptitle(title_info, fontsize=18, y=0.94)
 
         # Add simplified legend centered at the bottom (closer to subplots)
         handles, labels = axs[0].get_legend_handles_labels()
@@ -445,7 +463,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         
         fig.legend(unique_handles, unique_labels, 
                    loc='lower center', 
-                   bbox_to_anchor=(0.5, 0.05),
+                   bbox_to_anchor=(0.5, 0.08),
                    ncol=3, 
                    frameon=False,
                    fontsize=14)
@@ -454,8 +472,8 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         return
 
     # Adjust layout to accommodate title and legend with more space for plots
-    plt.subplots_adjust(top=0.85, bottom=0.18)
-    plt.tight_layout(rect=[0, 0.15, 1, 0.87])
+    plt.subplots_adjust(top=0.87, bottom=0.20)
+    plt.tight_layout(rect=[0, 0.17, 1, 0.89])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
@@ -508,7 +526,7 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
                               tpot_slo=tpot_slo,
                               atta_target=90,
                               show_ylabel=True)
-    axs[0].set_title("SLO Attainment vs Request Rate")
+    axs[0].set_title(f"SLO Attainment vs Request Rate\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
 
     # SLO scale plot using the last file
     if result_files:
@@ -521,7 +539,7 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
             scales=[2.0, 1.8, 1.6, 1.4, 1.2, 1.0, 0.8, 0.6, 0.4],
             atta_target=90,
             show_ylabel=True)
-        axs[1].set_title("SLO Attainment vs SLO Scale")
+        axs[1].set_title(f"SLO Attainment vs SLO Scale\n(Base: TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)")
 
     # Add simplified legend for custom plots
     handles, labels = axs[0].get_legend_handles_labels()
@@ -535,14 +553,14 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
     
     fig.legend(unique_handles, unique_labels, 
                loc='lower center', 
-               bbox_to_anchor=(0.5, 0.05),
+               bbox_to_anchor=(0.5, 0.08),
                ncol=3, 
                frameon=False,
                fontsize=12)
 
     # Proper layout adjustment with more space for plots
-    plt.subplots_adjust(bottom=0.15)
-    plt.tight_layout(rect=[0, 0.12, 1, 1])
+    plt.subplots_adjust(bottom=0.18)
+    plt.tight_layout(rect=[0, 0.15, 1, 1])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
