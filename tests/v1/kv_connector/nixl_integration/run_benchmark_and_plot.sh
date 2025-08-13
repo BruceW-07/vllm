@@ -9,13 +9,29 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Get dataset name from command line argument or use default
 DATASET_NAME=${1:-"sharegpt"}
 
+# Number of prefill and decode instances to create
+NUM_PREFILL_INSTANCES=${NUM_PREFILL_INSTANCES:-1} # Default to 1
+NUM_DECODE_INSTANCES=${NUM_DECODE_INSTANCES:-1}   # Default to 1
+PREFILLER_TP_SIZE=${PREFILLER_TP_SIZE:-1}
+DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
+
 echo "=========================================="
 echo "Running vLLM Benchmark and Plotting"
 echo "Dataset: $DATASET_NAME"
+echo "Prefill instances: $NUM_PREFILL_INSTANCES"
+echo "Decode instances: $NUM_DECODE_INSTANCES"
+echo "Prefiller TP size: $PREFILLER_TP_SIZE"
+echo "Decoder TP size: $DECODER_TP_SIZE"
 echo "=========================================="
 
 # Step 1: Run benchmark
 echo "Step 1: Running benchmark..."
+
+# Pass environment variables to the benchmark script
+NUM_PREFILL_INSTANCES="$NUM_PREFILL_INSTANCES" \
+NUM_DECODE_INSTANCES="$NUM_DECODE_INSTANCES" \
+PREFILLER_TP_SIZE="$PREFILLER_TP_SIZE" \
+DECODER_TP_SIZE="$DECODER_TP_SIZE" \
 bash "$SCRIPT_DIR/run_bench.sh" "$DATASET_NAME"
 
 # Step 2: Generate plots

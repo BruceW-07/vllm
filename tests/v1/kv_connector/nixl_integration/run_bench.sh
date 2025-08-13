@@ -8,9 +8,6 @@ DATASET_NAME=${1:-"sharegpt"}
 MODELS=(
     "/workspace/models/Qwen3-0.6B"
 )
-SERVED_MODELS=(
-    "Qwen/Qwen3-0.6B"
-)
 
 # Number of prefill and decode instances to create
 NUM_PREFILL_INSTANCES=${NUM_PREFILL_INSTANCES:-1} # Default to 1
@@ -65,7 +62,6 @@ get_num_gpus() {
 # Function to run tests for a specific model
 run_tests_for_model() {
   local model_name="$1"
-  local served_models="$2"
   echo "================================"
   echo "Testing model: $model_name"
   echo "================================"
@@ -193,7 +189,6 @@ run_tests_for_model() {
     vllm bench serve \
       --backend vllm \
       --model "$model_name" \
-      --served-model-name "$served_models" \
       --endpoint /v1/completions \
       --dataset-name custom  \
       --dataset-path /workspace/w50052772/data/$DATASET_NAME.jsonl \
@@ -219,8 +214,7 @@ run_tests_for_model() {
 # Run tests for each model
 for idx in "${!MODELS[@]}"; do
   model_name="${MODELS[$idx]}"
-  served_models="${SERVED_MODELS[$idx]}"
-  run_tests_for_model "$model_name" "$served_models"
+  run_tests_for_model "$model_name"
 done
 
 echo "All tests completed!"
