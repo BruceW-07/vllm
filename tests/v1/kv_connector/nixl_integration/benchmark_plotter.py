@@ -175,7 +175,7 @@ def draw_attainment_rate_plot(
                     f"Improvement ({backends[0].label} compared to {backend.label}): {first_inter_x/inter_x}"
                 )
 
-    ax.set_ylim(0, 110)
+    ax.set_ylim(0, 105)
 
 
 def draw_slo_scale_plot(
@@ -198,7 +198,7 @@ def draw_slo_scale_plot(
 
     scales = sorted(scales, reverse=True)
     ax.invert_xaxis()
-    ax.set_ylim(0, 110)
+    ax.set_ylim(0, 105)
 
     try:
         data = load_vllm_result(result_file)
@@ -310,8 +310,8 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         print("Cannot create plots - matplotlib/numpy not available")
         return
 
-    plt.rcParams.update({'font.size': 20})
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+    plt.rcParams.update({'font.size': 16})
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8))
 
     # Scan directory for result files
     files_and_rates = scan_result_files(result_dir)
@@ -376,7 +376,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         axs[1].set_title("SLO Attainment vs SLO Scale")
 
         # Add overall title
-        fig.suptitle(title_info, fontsize=16, y=0.95)
+        fig.suptitle(title_info, fontsize=18, y=0.95)
 
         # Add simplified legend centered at the bottom
         handles, labels = axs[0].get_legend_handles_labels()
@@ -392,14 +392,15 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                    loc='lower center', 
                    bbox_to_anchor=(0.5, 0.02),
                    ncol=3, 
-                   frameon=False)
+                   frameon=False,
+                   fontsize=14)
     else:
         print(f"No result files found in {result_dir}")
         return
 
-    # Adjust layout to accommodate title and legend
-    plt.subplots_adjust(top=0.88, bottom=0.18)
-    plt.tight_layout(rect=[0, 0.15, 1, 0.9])
+    # Adjust layout to accommodate title and legend with more space for plots
+    plt.subplots_adjust(top=0.88, bottom=0.15)
+    plt.tight_layout(rect=[0, 0.12, 1, 0.9])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
@@ -439,7 +440,7 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
         return
 
     plt.rcParams.update({'font.size': 14})
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8))
 
     result_files = [f for f, r in files_and_rates]
     request_rates = [r for f, r in files_and_rates]
@@ -481,11 +482,12 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
                loc='lower center', 
                bbox_to_anchor=(0.5, 0.02),
                ncol=3, 
-               frameon=False)
+               frameon=False,
+               fontsize=12)
 
-    # Proper layout adjustment
-    plt.subplots_adjust(bottom=0.15)
-    plt.tight_layout(rect=[0, 0.12, 1, 1])
+    # Proper layout adjustment with more space for plots
+    plt.subplots_adjust(bottom=0.12)
+    plt.tight_layout(rect=[0, 0.10, 1, 1])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
