@@ -376,7 +376,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         axs[1].set_title("SLO Attainment vs SLO Scale")
 
         # Add overall title
-        fig.suptitle(title_info, fontsize=16, y=0.98)
+        fig.suptitle(title_info, fontsize=16, y=0.95)
 
         # Add simplified legend centered at the bottom
         handles, labels = axs[0].get_legend_handles_labels()
@@ -390,7 +390,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         
         fig.legend(unique_handles, unique_labels, 
                    loc='lower center', 
-                   bbox_to_anchor=(0.5, -0.05),
+                   bbox_to_anchor=(0.5, 0.02),
                    ncol=3, 
                    frameon=False)
     else:
@@ -398,8 +398,8 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         return
 
     # Adjust layout to accommodate title and legend
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.9, bottom=0.15)
+    plt.subplots_adjust(top=0.88, bottom=0.18)
+    plt.tight_layout(rect=[0, 0.15, 1, 0.9])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
@@ -467,7 +467,25 @@ def plot_custom(files_and_rates: List[Tuple[str, float]],
             show_ylabel=True)
         axs[1].set_title("SLO Attainment vs SLO Scale")
 
-    plt.tight_layout()
+    # Add simplified legend for custom plots
+    handles, labels = axs[0].get_legend_handles_labels()
+    # Only show unique labels 
+    unique_labels = []
+    unique_handles = []
+    for handle, label in zip(handles, labels):
+        if label not in unique_labels:
+            unique_labels.append(label)
+            unique_handles.append(handle)
+    
+    fig.legend(unique_handles, unique_labels, 
+               loc='lower center', 
+               bbox_to_anchor=(0.5, 0.02),
+               ncol=3, 
+               frameon=False)
+
+    # Proper layout adjustment
+    plt.subplots_adjust(bottom=0.15)
+    plt.tight_layout(rect=[0, 0.12, 1, 1])
 
     # Check if output directory is specified via environment variable
     custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
