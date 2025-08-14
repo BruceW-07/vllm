@@ -159,7 +159,7 @@ def draw_attainment_rate_plot(
                 ys_tpot,
                 label="TPOT only",
                 linestyle="-",
-                color="#73c0de",
+                color="#4dc832",
                 marker="^",
                 linewidth=2,
                 markersize=6)
@@ -189,7 +189,7 @@ def draw_attainment_rate_plot(
                 inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
                 if inter_x_tpot is not None:
                     ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
-                             linestyles="--", colors="#73c0de", alpha=0.8)
+                             linestyles="--", colors="#4dc832", alpha=0.8)
             except:
                 pass
                 
@@ -279,7 +279,7 @@ def draw_slo_scale_plot(
                 ys_tpot,
                 label="TPOT only",
                 linestyle="-",
-                color="#73c0de",
+                color="#4dc832",
                 marker="^",
                 linewidth=2,
                 markersize=6)
@@ -309,7 +309,7 @@ def draw_slo_scale_plot(
                 inter_x_tpot, inter_y_tpot = find_intersection(xs, ys_tpot, atta_target)
                 if inter_x_tpot is not None:
                     ax.vlines(x=inter_x_tpot, ymin=0, ymax=inter_y_tpot,
-                             linestyles="--", colors="#73c0de", alpha=0.8)
+                             linestyles="--", colors="#4dc832", alpha=0.8)
             except:
                 pass
 
@@ -429,7 +429,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
 
         # Second subplot: SLO scale plot using middle file
         middle_idx = len(result_files) // 2
-        middle_rate = request_rates[middle_idx]
+        request_rate = request_rates[0]
         draw_slo_scale_plot(axs[1],
                             result_files[middle_idx],
                             Backend("vllm", "vLLM", "C1"),
@@ -441,7 +441,7 @@ def plot_vllm_fig9_style(result_dir: str = ".",
                             ],
                             atta_target=atta_target,
                             show_ylabel=True)
-        axs[1].set_title(f"SLO Attainment vs SLO Scale (Request Rate: {middle_rate:.1f} req/s)\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)", 
+        axs[1].set_title(f"SLO Attainment vs SLO Scale (Request Rate: {request_rate:.1f} req/s)\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)", 
                          fontsize=14, pad=20)
 
         # Add overall title (closer to subplots)
