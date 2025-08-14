@@ -616,7 +616,12 @@ def plot_comparison(simple_dir: str,
         plots_dir = os.path.join(script_dir, "plots")
         os.makedirs(plots_dir, exist_ok=True)
 
-    output_path = os.path.join(plots_dir, "vllm_comparison_plots.pdf")
+    # Generate filename from combined directory names
+    simple_dirname = os.path.basename(simple_dir.rstrip('/'))
+    nixl_dirname = os.path.basename(nixl_dir.rstrip('/'))
+    combined_filename = f"{simple_dirname}_vs_{nixl_dirname}_comparison.pdf"
+    
+    output_path = os.path.join(plots_dir, combined_filename)
     plt.savefig(output_path, bbox_inches="tight")
     print(f"Comparison plot saved to {output_path}")
 
