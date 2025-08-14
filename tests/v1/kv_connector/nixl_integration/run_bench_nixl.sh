@@ -16,7 +16,6 @@ PREFILLER_TP_SIZE=${PREFILLER_TP_SIZE:-1}
 DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
 # GPU allocation and memory settings
-START_GPU_ID=${START_GPU_ID:-0}  # Starting GPU ID to use
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.2}  # GPU memory utilization
 
 # Find the git repository root directory
@@ -78,11 +77,17 @@ run_tests_for_model() {
   echo "  Decode instances: $NUM_DECODE_INSTANCES"
   echo "  Prefiller TP size: $PREFILLER_TP_SIZE"
   echo "  Decoder TP size: $DECODER_TP_SIZE"
-  echo "  Starting GPU ID: $START_GPU_ID"
   echo "  GPU Memory Utilization: $GPU_MEMORY_UTILIZATION"
   echo "  Prompts per test: $NUM_PROMPT"
   echo "  Request rates: ${REQUEST_RATES[*]}"
   echo "================================"
+
+  # Display GPU allocation strategy
+  echo "GPU Allocation Strategy (similar to run_accuracy_test.sh):"
+  echo "  Total available GPUs: $(get_num_gpus)"
+  echo "  Prefill instances will use GPUs in round-robin: 0, 1, 2, ..., $(($(get_num_gpus) - 1)), 0, 1, ..."
+  echo "  Decode instances will start from GPU index: $NUM_PREFILL_INSTANCES"
+  echo ""
 
   # Get model-specific arguments
   local model_args=$(get_model_args "$model_name")
@@ -95,18 +100,19 @@ run_tests_for_model() {
 
   # Start prefill instances
   for i in $(seq 0 $((NUM_PREFILL_INSTANCES-1))); do
-    # Calculate GPU devices for this instance based on TP size
-    start_gpu=$((START_GPU_ID + i * PREFILLER_TP_SIZE))
+    # Calculate GPU ID - distribute across available GPUs (like run_accuracy_test.sh)
     if [ "$PREFILLER_TP_SIZE" -eq 1 ]; then
-      GPU_DEVICES="$start_gpu"
+      GPU_ID=$((i % $(get_num_gpus)))
+      GPU_DEVICES="$GPU_ID"
     else
-      # For TP > 1, use consecutive GPUs
-      GPU_DEVICES=$(seq -s, $start_gpu $((start_gpu + PREFILLER_TP_SIZE - 1)))
+      # For TP > 1, use consecutive GPUs starting from calculated base
+      base_gpu=$((i % $(get_num_gpus)))
+      GPU_DEVICES=$(seq -s, $base_gpu $((base_gpu + PREFILLER_TP_SIZE - 1)))
     fi
 
     # Calculate port number (base port + instance number)
     PORT=$((8150 + i))
-    # Calculate side channel port. Avoid clash with with TP workers. 
+    # Calculate side channel port. Avoid clash with TP workers. 
     SIDE_CHANNEL_PORT=$((5559 + i))
 
     echo "Starting prefill instance $i on GPU(s) $GPU_DEVICES, port $PORT (TP size: $PREFILLER_TP_SIZE)"
@@ -135,16 +141,14 @@ run_tests_for_model() {
 
   # Start decode instances
   for i in $(seq 0 $((NUM_DECODE_INSTANCES-1))); do
-    # Calculate GPU devices for this instance based on TP size
-    # Start decode instances after all prefill GPUs
-    total_prefill_gpus=$((NUM_PREFILL_INSTANCES * PREFILLER_TP_SIZE))
-    start_gpu=$((START_GPU_ID + total_prefill_gpus + i * DECODER_TP_SIZE))
-    
+    # Calculate GPU ID - distribute across available GPUs, starting from after prefill instances (like run_accuracy_test.sh)
     if [ "$DECODER_TP_SIZE" -eq 1 ]; then
-      GPU_DEVICES="$start_gpu"
+      GPU_ID=$(((i + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
+      GPU_DEVICES="$GPU_ID"
     else
-      # For TP > 1, use consecutive GPUs
-      GPU_DEVICES=$(seq -s, $start_gpu $((start_gpu + DECODER_TP_SIZE - 1)))
+      # For TP > 1, use consecutive GPUs starting from calculated base
+      base_gpu=$(((i + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
+      GPU_DEVICES=$(seq -s, $base_gpu $((base_gpu + DECODER_TP_SIZE - 1)))
     fi
     
     # Calculate port number (base port + instance number)
@@ -198,6 +202,10 @@ run_tests_for_model() {
   # Add all decode hosts and ports
   PROXY_CMD+=" --decoder-hosts ${DECODE_HOSTS[@]}"
   PROXY_CMD+=" --decoder-ports ${DECODE_PORTS[@]}"
+
+  # Add TP size parameters (if toy_proxy_server.py supports them)
+  # PROXY_CMD+=" --prefiller-tp-size ${PREFILLER_TP_SIZE}"
+  # PROXY_CMD+=" --decoder-tp-size ${DECODER_TP_SIZE}"
 
   # Start the proxy server
   echo "Starting proxy server with command: $PROXY_CMD"
