@@ -243,6 +243,10 @@ EOF
   # Clean up
   cleanup_instances
 }
+
+# Function to run tests using disagg multi-instance approach
+run_tests_for_model_disagg() {
+  model_name="$1"
   echo "================================"
 
   # Display GPU allocation strategy
@@ -253,7 +257,7 @@ EOF
   echo ""
 
   # Get model-specific arguments
-  local model_args=$(get_model_args "$model_name")
+  model_args=$(get_model_args "$model_name")
 
   # Arrays to store all hosts and ports
   PREFILL_HOSTS=()
