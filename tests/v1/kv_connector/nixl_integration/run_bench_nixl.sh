@@ -15,8 +15,9 @@ NUM_DECODE_INSTANCES=${NUM_DECODE_INSTANCES:-1}   # Default to 1
 PREFILLER_TP_SIZE=${PREFILLER_TP_SIZE:-1}
 DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
-# GPU allocation settings
+# GPU allocation and memory settings
 START_GPU_ID=${START_GPU_ID:-0}  # Starting GPU ID to use
+GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.2}  # GPU memory utilization
 
 # Find the git repository root directory
 GIT_ROOT=$(git rev-parse --show-toplevel)
@@ -78,6 +79,7 @@ run_tests_for_model() {
   echo "  Prefiller TP size: $PREFILLER_TP_SIZE"
   echo "  Decoder TP size: $DECODER_TP_SIZE"
   echo "  Starting GPU ID: $START_GPU_ID"
+  echo "  GPU Memory Utilization: $GPU_MEMORY_UTILIZATION"
   echo "  Prompts per test: $NUM_PROMPT"
   echo "  Request rates: ${REQUEST_RATES[*]}"
   echo "================================"
@@ -113,7 +115,7 @@ run_tests_for_model() {
     BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
     --port $PORT \
     --enforce-eager \
-    --gpu-memory-utilization 0.2 \
+    --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
     --tensor-parallel-size $PREFILLER_TP_SIZE \
     --kv-transfer-config '{\"kv_connector\":\"NixlConnector\",\"kv_role\":\"kv_both\"}' \
     --no-enable-prefix-caching"
@@ -156,7 +158,7 @@ run_tests_for_model() {
     BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
     --port $PORT \
     --enforce-eager \
-    --gpu-memory-utilization 0.2 \
+    --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
     --tensor-parallel-size $DECODER_TP_SIZE \
     --kv-transfer-config '{\"kv_connector\":\"NixlConnector\",\"kv_role\":\"kv_both\"}' \
     --no-enable-prefix-caching"
@@ -246,7 +248,7 @@ run_tests_for_model() {
         "dataset_name=$DATASET_NAME" \
         "model_name=$MODEL_NAME" \
         "config_suffix=$CONFIG_SUFFIX" \
-        "gpu_memory_utilization=0.2" \
+        "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION" \
         "kv_connector=NixlConnector" \
         "prefix_caching=disabled"
     

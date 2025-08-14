@@ -101,15 +101,17 @@ python benchmark_plotter.py --compare \
 ```
 results/
 ├── sharegpt/
-│   ├── simple_20240814_143022/     # Simple模式结果
+│   ├── 20240814_143022/            # Simple模式结果（时间戳目录）
 │   │   ├── vllm-0.5qps-*.json      # 各QPS测试结果
 │   │   ├── vllm-1.0qps-*.json
 │   │   └── plots/
-│   │       └── vllm_benchmark_plots.pdf
-│   └── nixl_20240814_150000/       # NIXL模式结果
-│       ├── vllm-0.5qps-*.json
-│       └── plots/
-│           └── vllm_comparison_plots.pdf
+│   │       └── 20240814_143022_benchmark_plots.pdf    # 基于目录名的单模式图表
+│   ├── 20240814_150000/            # NIXL模式结果（时间戳目录）
+│   │   ├── vllm-0.5qps-*.json
+│   │   └── plots/
+│   │       └── 20240814_150000_benchmark_plots.pdf
+│   └── plots/
+│       └── 20240814_143022_vs_20240814_150000_comparison.pdf  # 基于目录名的对比图表
 ```
 
 ### JSON结果文件格式
@@ -164,14 +166,52 @@ TTFT_SLO=100 TPOT_SLO=150 TARGET_ATTAINMENT=95 \
 # 单一模式结果可视化
 python benchmark_plotter.py --result-dir ./results/sharegpt/20240814_143022
 
-# 两种模式性能对比
+# 两种模式性能对比（默认使用交集request rates）
 python benchmark_plotter.py --compare \
     --simple-dir ./results/sharegpt/simple_20240814_143022 \
     --nixl-dir ./results/sharegpt/nixl_20240814_150000
 
+# 使用各自的request rate集合进行对比
+python benchmark_plotter.py --compare \
+    --simple-dir ./results/sharegpt/simple_20240814_143022 \
+    --nixl-dir ./results/sharegpt/nixl_20240814_150000 \
+    --use-separate-rates
+
+# 自定义SLO参数的对比分析
+python benchmark_plotter.py --compare \
+    --simple-dir ./results/simple_results \
+    --nixl-dir ./results/nixl_results \
+    --ttft-slo 100 --tpot-slo 150 --atta-target 95
+
 # 查看所有参数选项
 python benchmark_plotter.py --help
 ```
+
+#### 使用对比脚本（推荐）
+```bash
+# 基本对比（默认使用交集）
+./run_comparison_plot.sh results/simple results/nixl
+
+# 使用各自的request rate集合
+./run_comparison_plot.sh results/simple results/nixl --use-separate-rates
+
+# 自定义SLO参数
+TTFT_SLO=100 TPOT_SLO=150 TARGET_ATTAINMENT=95 \
+./run_comparison_plot.sh results/simple results/nixl
+```
+
+#### Request Rate对比策略
+- **默认模式（推荐）**：只对比两个模式共同的request rate值，确保公平比较
+- **独立模式**：使用 `--use-separate-rates` 显示各自完整的性能曲线
+
+#### 输出文件命名规则
+- **单模式图表**：`{结果目录名}_benchmark_plots.pdf`
+  - 例如：`20240814_143022_benchmark_plots.pdf`
+- **对比图表**：`{simple目录名}_vs_{nixl目录名}_comparison.pdf`
+  - 例如：`20240814_143022_vs_20240814_150000_comparison.pdf`
+- **自动保存位置**：
+  - 默认：脚本目录下的 `plots/` 文件夹
+  - 自定义：通过 `PLOT_OUTPUT_DIR` 环境变量指定
 
 ### 3. 结果管理
 ```bash

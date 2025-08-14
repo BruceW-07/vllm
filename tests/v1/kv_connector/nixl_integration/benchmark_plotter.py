@@ -484,7 +484,11 @@ def plot_vllm_fig9_style(result_dir: str = ".",
         plots_dir = os.path.join(script_dir, "plots")
         os.makedirs(plots_dir, exist_ok=True)
 
-    output_path = os.path.join(plots_dir, "vllm_benchmark_plots.pdf")
+    # Generate filename from result directory name
+    result_dirname = os.path.basename(result_dir.rstrip('/'))
+    output_filename = f"{result_dirname}_benchmark_plots.pdf"
+    
+    output_path = os.path.join(plots_dir, output_filename)
     plt.savefig(output_path, bbox_inches="tight")
     print(f"Plot saved to {output_path}")
     # Don't show plot in headless environment
@@ -495,7 +499,8 @@ def plot_comparison(simple_dir: str,
                    nixl_dir: str,
                    ttft_slo: float = 125.0,
                    tpot_slo: float = 200.0,
-                   atta_target: float = 90.0):
+                   atta_target: float = 90.0,
+                   use_separate_rates: bool = False):
     """Create comparison plots between Simple mode and NIXL mode
     
     Args:
@@ -504,6 +509,7 @@ def plot_comparison(simple_dir: str,
         ttft_slo: TTFT SLO threshold in milliseconds (default: 125ms)
         tpot_slo: TPOT SLO threshold in milliseconds (default: 200ms)
         atta_target: Target attainment rate percentage (default: 90%)
+        use_separate_rates: Use separate request rate sets instead of intersection (default: False)
     """
     if not HAS_PLOTTING:
         print("Cannot create plots - matplotlib/numpy not available")
@@ -549,12 +555,37 @@ def plot_comparison(simple_dir: str,
         title_info = "Performance Comparison: Simple vs NIXL Mode"
         print(f"Could not extract config for title: {e}")
 
-    # Prepare data for plotting
-    simple_result_files = [f for f, r in simple_files_and_rates]
-    simple_request_rates = [r for f, r in simple_files_and_rates]
+    # Prepare data for plotting with aligned request rates
+    simple_dict = {r: f for f, r in simple_files_and_rates}
+    nixl_dict = {r: f for f, r in nixl_files_and_rates}
     
-    nixl_result_files = [f for f, r in nixl_files_and_rates]
-    nixl_request_rates = [r for f, r in nixl_files_and_rates]
+    # Find common request rates for fair comparison
+    simple_rates_set = set(simple_dict.keys())
+    nixl_rates_set = set(nixl_dict.keys())
+    common_rates = sorted(simple_rates_set.intersection(nixl_rates_set))
+    
+    print(f"Simple rates: {sorted(simple_rates_set)}")
+    print(f"NIXL rates: {sorted(nixl_rates_set)}")
+    print(f"Common rates for comparison: {common_rates}")
+    
+    if use_separate_rates or not common_rates:
+        if use_separate_rates:
+            print("Using separate request rate sets as requested")
+        else:
+            print("Warning: No common request rates found between Simple and NIXL results")
+            print("Will plot with separate rate sets, but comparison may not be meaningful")
+        # Use original behavior with separate rate sets
+        simple_result_files = [f for f, r in simple_files_and_rates]
+        simple_request_rates = [r for f, r in simple_files_and_rates]
+        nixl_result_files = [f for f, r in nixl_files_and_rates]
+        nixl_request_rates = [r for f, r in nixl_files_and_rates]
+    else:
+        # Use only common rates for fair comparison (default behavior)
+        print(f"Using common request rates for fair comparison: {len(common_rates)} rates")
+        simple_result_files = [simple_dict[r] for r in common_rates]
+        simple_request_rates = common_rates
+        nixl_result_files = [nixl_dict[r] for r in common_rates]
+        nixl_request_rates = common_rates
 
     # Define backends for comparison
     simple_backend = Backend("simple", "Simple Mode", "#ee6666")
@@ -798,6 +829,8 @@ def main():
                        help="Directory containing Simple mode benchmark results")
     parser.add_argument("--nixl-dir", type=str,
                        help="Directory containing NIXL mode benchmark results")
+    parser.add_argument("--use-separate-rates", action="store_true",
+                       help="Use separate request rate sets instead of common intersection (default: use intersection)")
     
     args = parser.parse_args()
     
@@ -811,7 +844,8 @@ def main():
                        nixl_dir=args.nixl_dir,
                        ttft_slo=args.ttft_slo,
                        tpot_slo=args.tpot_slo,
-                       atta_target=args.atta_target)
+                       atta_target=args.atta_target,
+                       use_separate_rates=args.use_separate_rates)
     else:
         # Normal mode
         if not args.result_dir:
