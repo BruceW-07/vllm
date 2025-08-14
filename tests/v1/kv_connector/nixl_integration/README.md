@@ -2,7 +2,29 @@
 
 🚀 **高效的 vLLM 性能评估和可视化工具套件**
 
-支持标准单实例模式（Simple）和前缀-解码分离模式（NIXL），提供自动化测试、结果可视化和性能对比功能。
+支持标准单实例模式（Simple）、前缀-解## 📁 脚本说明
+
+| 脚本 | 功能 | 使用场景 |
+|------|------|---## 📊 可视化功能
+
+### 单一模式图表
+生成类似 DistServe Figure 9 的性能图表：
+- **左子图**：SLO达成率 vs 请求率
+- **右子图**：SLO达成率 vs SLO Scale
+- **三条线**：Both TTFT & TPOT、TTFT only、TPOT only
+
+### 多模式对比图表（核心功能）
+在同一张图中对比多种模式的性能：
+- **支持组合**：任意两种或三种模式对比（Simple, NIXL, LMCache）
+- **左子图**：多种模式的请求率对比
+- **右子图**：多种模式的SLO Scale对比
+- **颜色区分**：Simple模式（红色），NIXL模式（蓝色），LMCache模式（绿色）
+- **分类输出**：支持生成 TTFT only、TPOT only、Both 三组图片
+- **文件命名**：`{目录1}_vs_{目录2}_vs_{目录3}_comparison_{slo_type}.pdf`n_benchmark_and_plot_nixl.sh` | NIXL模式自动化测试 | 高性能前缀-解码分离测试 |
+| `run_benchmark_and_plot_simple.sh` | Simple模式自动化测试 | 标准基线测试 |
+| `run_benchmark_and_plot_lmcache.sh` | LMCache模式自动化测试 | LMCache 前缀-解码分离测试 |
+| `benchmark_plotter.py` | 结果可视化和对比工具 | 单一模式分析或多模式对比 |
+| `list_results.sh` | 查看历史测试结果 | 结果管理 |XL）和 LMCache 分离模式，提供自动化测试、结果可视化和三模式性能对比功能。
 
 ## ⚡ 快速开始
 
@@ -26,12 +48,36 @@ TENSOR_PARALLEL_SIZE=4 \
 ./run_benchmark_and_plot_simple.sh sharegpt
 ```
 
+### 🎯 LMCache模式（LMCache 前缀-解码分离）
+```bash
+# 基本测试
+./run_benchmark_and_plot_lmcache.sh sharegpt
+
+# 自定义配置
+NUM_PREFILL_INSTANCES=2 NUM_DECODE_INSTANCES=2 \
+LMCACHE_PORT=65432 \
+./run_benchmark_and_plot_lmcache.sh sharegpt
+```
+
 ## 📊 性能对比（核心功能）
 ```bash
-# 对比两种模式的性能差异
+# 双模式对比（Simple vs NIXL）
 python benchmark_plotter.py --compare \
     --simple-dir ./results/sharegpt/simple_20240814_143022 \
     --nixl-dir ./results/sharegpt/nixl_20240814_150000
+
+# 三模式对比（Simple vs NIXL vs LMCache）
+python benchmark_plotter.py --compare \
+    --simple-dir ./results/sharegpt/simple_20240814_143022 \
+    --nixl-dir ./results/sharegpt/nixl_20240814_150000 \
+    --lmcache-dir ./results/sharegpt/lmcache_20240814_160000
+
+# 分类型SLO对比（生成三组图片：TTFT only, TPOT only, Both）
+python benchmark_plotter.py --compare \
+    --simple-dir ./results/simple_results \
+    --nixl-dir ./results/nixl_results \
+    --lmcache-dir ./results/lmcache_results \
+    --mode-filter ttft  # 或 tpot 或 both(默认)
 
 # 自定义SLO参数对比
 python benchmark_plotter.py --compare \
@@ -42,9 +88,10 @@ python benchmark_plotter.py --compare \
 
 ## 🎯 主要特性
 
-- ✅ **双模式支持**：Simple（标准）和 NIXL（前缀-解码分离）
+- ✅ **三模式支持**：Simple（标准）、NIXL（前缀-解码分离）和 LMCache（LMCache 分离）
 - ✅ **自动化测试**：一键运行benchmark + 可视化
-- ✅ **性能对比**：直观对比两种部署模式的性能差异
+- ✅ **多模式对比**：灵活对比任意两种或三种部署模式的性能差异
+- ✅ **分类型SLO图**：支持生成 TTFT only、TPOT only、Both 三组图片
 - ✅ **结果管理**：时间戳目录结构，避免文件冲突
 - ✅ **配置记录**：自动记录和展示关键配置信息
 - ✅ **服务器友好**：无GUI依赖，适合远程服务器环境
@@ -74,6 +121,15 @@ python benchmark_plotter.py --compare \
 | `TENSOR_PARALLEL_SIZE` | 1 | 张量并行大小 |
 | `GPU_MEMORY_UTILIZATION` | 0.8 | GPU内存利用率 |
 
+### LMCache模式参数
+| 参数 | 默认值 | 描述 |
+|------|-------|------|
+| `NUM_PREFILL_INSTANCES` | 1 | prefill实例数量 |
+| `NUM_DECODE_INSTANCES` | 1 | decode实例数量 |
+| `PREFILLER_TP_SIZE` | 1 | prefill张量并行大小 |
+| `DECODER_TP_SIZE` | 1 | decode张量并行大小 |
+| `LMCACHE_PORT` | 65432 | LMCache 服务端口 |
+
 ### SLO参数（通用）
 | 参数 | 默认值 | 描述 |
 |------|-------|------|
@@ -101,17 +157,24 @@ python benchmark_plotter.py --compare \
 ```
 results/
 ├── sharegpt/
-│   ├── 20240814_143022/            # Simple模式结果（时间戳目录）
+│   ├── simple_20240814_143022/      # Simple模式结果（时间戳目录）
 │   │   ├── vllm-0.5qps-*.json      # 各QPS测试结果
 │   │   ├── vllm-1.0qps-*.json
 │   │   └── plots/
-│   │       └── 20240814_143022_benchmark_plots.pdf    # 基于目录名的单模式图表
-│   ├── 20240814_150000/            # NIXL模式结果（时间戳目录）
+│   │       └── simple_20240814_143022_benchmark_plots.pdf
+│   ├── nixl_20240814_150000/        # NIXL模式结果（时间戳目录）
 │   │   ├── vllm-0.5qps-*.json
 │   │   └── plots/
-│   │       └── 20240814_150000_benchmark_plots.pdf
-│   └── plots/
-│       └── 20240814_143022_vs_20240814_150000_comparison.pdf  # 基于目录名的对比图表
+│   │       └── nixl_20240814_150000_benchmark_plots.pdf
+│   ├── lmcache_20240814_160000/     # LMCache模式结果（时间戳目录）
+│   │   ├── vllm-0.5qps-*.json
+│   │   └── plots/
+│   │       └── lmcache_20240814_160000_benchmark_plots.pdf
+│   └── plots/                       # 多模式对比图表目录
+│       ├── simple_vs_nixl_comparison_ttft.pdf
+│       ├── simple_vs_nixl_comparison_tpot.pdf
+│       ├── simple_vs_nixl_comparison_both.pdf
+│       └── simple_vs_nixl_vs_lmcache_comparison_both.pdf  # 三模式对比
 ```
 
 ### JSON结果文件格式
@@ -121,7 +184,7 @@ results/
   "tpots": [0.089, 0.091, ...],      // 输出令牌时间（秒）
   "model_name": "Qwen3-0.6B",        // 模型名称
   "dataset_name": "sharegpt",        // 数据集名称
-  "deployment_mode": "simple/nixl",  // 部署模式
+  "deployment_mode": "simple/nixl/lmcache", // 部署模式
   "num_prefill_instances": 1,        // 配置信息
   "tensor_parallel_size": 1
 }
