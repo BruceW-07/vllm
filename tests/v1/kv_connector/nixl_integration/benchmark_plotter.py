@@ -491,56 +491,335 @@ def plot_vllm_fig9_style(result_dir: str = ".",
     # plt.show()
 
 
+def plot_comparison(simple_dir: str,
+                   nixl_dir: str,
+                   ttft_slo: float = 125.0,
+                   tpot_slo: float = 200.0,
+                   atta_target: float = 90.0):
+    """Create comparison plots between Simple mode and NIXL mode
+    
+    Args:
+        simple_dir: Directory containing Simple mode result files
+        nixl_dir: Directory containing NIXL mode result files
+        ttft_slo: TTFT SLO threshold in milliseconds (default: 125ms)
+        tpot_slo: TPOT SLO threshold in milliseconds (default: 200ms)
+        atta_target: Target attainment rate percentage (default: 90%)
+    """
+    if not HAS_PLOTTING:
+        print("Cannot create plots - matplotlib/numpy not available")
+        return
+
+    plt.rcParams.update({'font.size': 16})
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8))
+
+    # Scan directories for result files
+    simple_files_and_rates = scan_result_files(simple_dir)
+    nixl_files_and_rates = scan_result_files(nixl_dir)
+
+    if not simple_files_and_rates:
+        print(f"No result files found in Simple directory: {simple_dir}")
+        return
+    
+    if not nixl_files_and_rates:
+        print(f"No result files found in NIXL directory: {nixl_dir}")
+        return
+
+    print(f"Found {len(simple_files_and_rates)} Simple mode result files")
+    print(f"Found {len(nixl_files_and_rates)} NIXL mode result files")
+
+    # Build title with configuration info from both modes
+    title_info = ""
+    try:
+        simple_data = load_vllm_result(simple_files_and_rates[0][0])
+        nixl_data = load_vllm_result(nixl_files_and_rates[0][0])
+        
+        # Extract model name
+        model_name = ""
+        if 'model_name' in simple_data:
+            model_name = simple_data['model_name']
+        elif 'model' in simple_data:
+            model_name = simple_data['model'].split('/')[-1]
+        
+        # Extract dataset name
+        dataset_name = simple_data.get('dataset_name', 'unknown')
+        
+        title_info = f"Performance Comparison: Simple vs NIXL Mode (Model:{model_name}, Dataset:{dataset_name})"
+                
+    except Exception as e:
+        title_info = "Performance Comparison: Simple vs NIXL Mode"
+        print(f"Could not extract config for title: {e}")
+
+    # Prepare data for plotting
+    simple_result_files = [f for f, r in simple_files_and_rates]
+    simple_request_rates = [r for f, r in simple_files_and_rates]
+    
+    nixl_result_files = [f for f, r in nixl_files_and_rates]
+    nixl_request_rates = [r for f, r in nixl_files_and_rates]
+
+    # Define backends for comparison
+    simple_backend = Backend("simple", "Simple Mode", "#ee6666")
+    nixl_backend = Backend("nixl", "NIXL Mode", "#5470c6")
+
+    # First subplot: Attainment rate comparison
+    draw_comparison_attainment_plot(axs[0],
+                                  simple_result_files, simple_request_rates, simple_backend,
+                                  nixl_result_files, nixl_request_rates, nixl_backend,
+                                  ttft_slo=ttft_slo,
+                                  tpot_slo=tpot_slo,
+                                  atta_target=atta_target,
+                                  show_ylabel=True)
+    axs[0].set_title(f"SLO Attainment vs Request Rate\n(TTFT≤{ttft_slo}ms, TPOT≤{tpot_slo}ms)", 
+                     fontsize=14, pad=20)
+
+    # Second subplot: SLO scale comparison using middle files
+    simple_middle_idx = len(simple_result_files) // 2
+    nixl_middle_idx = len(nixl_result_files) // 2
+    
+    draw_comparison_slo_scale_plot(axs[1],
+                                 simple_result_files[simple_middle_idx], simple_backend,
+                                 nixl_result_files[nixl_middle_idx], nixl_backend,
+                                 ttft_slo=ttft_slo,
+                                 tpot_slo=tpot_slo,
+                                 scales=[1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4],
+                                 atta_target=atta_target,
+                                 show_ylabel=True)
+    
+    simple_middle_rate = simple_request_rates[simple_middle_idx]
+    nixl_middle_rate = nixl_request_rates[nixl_middle_idx]
+    axs[1].set_title(f"SLO Attainment vs SLO Scale\n(Request Rates: Simple={simple_middle_rate:.1f}, NIXL={nixl_middle_rate:.1f} req/s)", 
+                     fontsize=14, pad=20)
+
+    # Add overall title
+    fig.suptitle(title_info, fontsize=18, y=0.97)
+
+    # Add legend for comparison
+    handles, labels = axs[0].get_legend_handles_labels()
+    fig.legend(handles, labels, 
+               loc='lower center', 
+               bbox_to_anchor=(0.5, 0.08),
+               ncol=2, 
+               frameon=False,
+               fontsize=14)
+
+    # Adjust layout
+    plt.subplots_adjust(top=0.90, bottom=0.20)
+    plt.tight_layout(rect=[0, 0.17, 1, 0.92])
+
+    # Save plot
+    custom_output_dir = os.environ.get('PLOT_OUTPUT_DIR')
+    
+    if custom_output_dir:
+        plots_dir = custom_output_dir
+        os.makedirs(plots_dir, exist_ok=True)
+    else:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        plots_dir = os.path.join(script_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+
+    output_path = os.path.join(plots_dir, "vllm_comparison_plots.pdf")
+    plt.savefig(output_path, bbox_inches="tight")
+    print(f"Comparison plot saved to {output_path}")
+
+
+def draw_comparison_attainment_plot(ax,
+                                  simple_files: List[str], simple_rates: List[float], simple_backend: Backend,
+                                  nixl_files: List[str], nixl_rates: List[float], nixl_backend: Backend,
+                                  ttft_slo: float, tpot_slo: float,
+                                  atta_target: Optional[float] = None,
+                                  show_ylabel: bool = False):
+    """Draw attainment rate comparison plot between Simple and NIXL modes"""
+    if not HAS_PLOTTING:
+        return
+
+    ax.set_xlabel("Request Rate (req/s)")
+    if show_ylabel:
+        ax.set_ylabel("SLO Attainment (%)")
+
+    # Plot Simple mode results
+    simple_ys_both = []
+    for result_file in simple_files:
+        try:
+            data = load_vllm_result(result_file)
+            ttfts = [t * 1000 for t in data.get('ttfts', [])]
+            tpots = [t * 1000 for t in data.get('tpots', [])]
+            
+            if ttfts and tpots:
+                simple_ys_both.append(get_attainment(ttfts, tpots, ttft_slo, tpot_slo))
+            else:
+                simple_ys_both.append(0)
+        except Exception as e:
+            print(f"Error processing Simple file {result_file}: {e}")
+            simple_ys_both.append(0)
+
+    # Plot NIXL mode results
+    nixl_ys_both = []
+    for result_file in nixl_files:
+        try:
+            data = load_vllm_result(result_file)
+            ttfts = [t * 1000 for t in data.get('ttfts', [])]
+            tpots = [t * 1000 for t in data.get('tpots', [])]
+            
+            if ttfts and tpots:
+                nixl_ys_both.append(get_attainment(ttfts, tpots, ttft_slo, tpot_slo))
+            else:
+                nixl_ys_both.append(0)
+        except Exception as e:
+            print(f"Error processing NIXL file {result_file}: {e}")
+            nixl_ys_both.append(0)
+
+    # Plot lines
+    ax.plot(simple_rates, simple_ys_both,
+            label=simple_backend.label,
+            color=simple_backend.color,
+            marker="o",
+            linewidth=2,
+            markersize=6)
+    
+    ax.plot(nixl_rates, nixl_ys_both,
+            label=nixl_backend.label,
+            color=nixl_backend.color,
+            marker="s",
+            linewidth=2,
+            markersize=6)
+
+    # Add target line and intersections if specified
+    if atta_target:
+        ax.axhline(y=atta_target, color="grey", linestyle="--", alpha=0.7)
+        
+        # Draw intersection lines
+        try:
+            inter_x, inter_y = find_intersection(simple_rates, simple_ys_both, atta_target)
+            if inter_x is not None:
+                ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
+                         linestyles="--", colors=simple_backend.color, alpha=0.8)
+        except:
+            pass
+            
+        try:
+            inter_x, inter_y = find_intersection(nixl_rates, nixl_ys_both, atta_target)
+            if inter_x is not None:
+                ax.vlines(x=inter_x, ymin=0, ymax=inter_y,
+                         linestyles="--", colors=nixl_backend.color, alpha=0.8)
+        except:
+            pass
+
+    ax.set_ylim(0, 105)
+
+
+def draw_comparison_slo_scale_plot(ax,
+                                 simple_file: str, simple_backend: Backend,
+                                 nixl_file: str, nixl_backend: Backend,
+                                 ttft_slo: float, tpot_slo: float,
+                                 scales: List[float],
+                                 atta_target: Optional[float] = None,
+                                 show_ylabel: bool = False):
+    """Draw SLO scale comparison plot between Simple and NIXL modes"""
+    if not HAS_PLOTTING:
+        return
+
+    ax.set_xlabel("SLO Scale")
+    if show_ylabel:
+        ax.set_ylabel("SLO Attainment (%)")
+
+    scales = sorted(scales, reverse=True)
+    ax.invert_xaxis()
+    ax.set_ylim(0, 105)
+
+    # Process Simple mode data
+    try:
+        simple_data = load_vllm_result(simple_file)
+        simple_ttfts = [t * 1000 for t in simple_data.get('ttfts', [])]
+        simple_tpots = [t * 1000 for t in simple_data.get('tpots', [])]
+        
+        if simple_ttfts and simple_tpots:
+            simple_ys = []
+            for scale in scales:
+                simple_ys.append(get_attainment(simple_ttfts, simple_tpots, 
+                                              ttft_slo * scale, tpot_slo * scale))
+            
+            ax.plot(scales, simple_ys,
+                    label=simple_backend.label,
+                    color=simple_backend.color,
+                    marker="o",
+                    linewidth=2,
+                    markersize=6)
+    except Exception as e:
+        print(f"Error processing Simple file for SLO scale: {e}")
+
+    # Process NIXL mode data
+    try:
+        nixl_data = load_vllm_result(nixl_file)
+        nixl_ttfts = [t * 1000 for t in nixl_data.get('ttfts', [])]
+        nixl_tpots = [t * 1000 for t in nixl_data.get('tpots', [])]
+        
+        if nixl_ttfts and nixl_tpots:
+            nixl_ys = []
+            for scale in scales:
+                nixl_ys.append(get_attainment(nixl_ttfts, nixl_tpots, 
+                                            ttft_slo * scale, tpot_slo * scale))
+            
+            ax.plot(scales, nixl_ys,
+                    label=nixl_backend.label,
+                    color=nixl_backend.color,
+                    marker="s",
+                    linewidth=2,
+                    markersize=6)
+    except Exception as e:
+        print(f"Error processing NIXL file for SLO scale: {e}")
+
+    # Add target line if specified
+    if atta_target:
+        ax.axhline(y=atta_target, color="grey", linestyle="--", alpha=0.7)
+
+
 def main():
+    """Main function to parse command line arguments and generate plots"""
     import argparse
-
-    parser = argparse.ArgumentParser(
-        description="vLLM Benchmark Result Plotting Script",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Basic usage with default parameters
-  python benchmark_plotter.py plot --dir /path/to/results
-  
-  # Custom SLO thresholds
-  python benchmark_plotter.py plot --dir /path/to/results --ttft-slo 100 --tpot-slo 150 --target 95
-
-Notes:
-- Use vLLM serve.py with --save-result --save-detailed to generate result files
-- TTFT/TPOT SLO values are in milliseconds
-- Result files should contain 'ttfts' and 'tpots' arrays for detailed analysis
-- File names should contain QPS values like: 'vllm-2.5qps-model-date.json'
-        """)
-
-    # Plot command (no subparsers needed for single command)
-    parser.add_argument(
-        '--dir',
-        '-d',
-        default='.',
-        help='Directory containing result files (default: current directory)')
-    parser.add_argument(
-        '--ttft-slo',
-        type=float,
-        default=125.0,
-        help='TTFT SLO threshold in milliseconds (default: 125)')
-    parser.add_argument(
-        '--tpot-slo',
-        type=float,
-        default=200.0,
-        help='TPOT SLO threshold in milliseconds (default: 200)')
-    parser.add_argument(
-        '--target',
-        type=float,
-        default=90.0,
-        help='Target attainment rate percentage (default: 90)')
-
+    
+    parser = argparse.ArgumentParser(description="Plot vLLM benchmark results")
+    parser.add_argument("--result-dir", type=str, 
+                       help="Directory containing benchmark result files")
+    parser.add_argument("--ttft-slo", type=float, default=125.0,
+                       help="TTFT SLO threshold in milliseconds (default: 125.0)")
+    parser.add_argument("--tpot-slo", type=float, default=200.0,
+                       help="TPOT SLO threshold in milliseconds (default: 200.0)")
+    parser.add_argument("--atta-target", type=float, default=90.0,
+                       help="Target attainment percentage (default: 90.0)")
+    
+    # Comparison mode arguments
+    parser.add_argument("--compare", action="store_true",
+                       help="Enable comparison mode between Simple and NIXL results")
+    parser.add_argument("--simple-dir", type=str,
+                       help="Directory containing Simple mode benchmark results")
+    parser.add_argument("--nixl-dir", type=str,
+                       help="Directory containing NIXL mode benchmark results")
+    
     args = parser.parse_args()
-
-    plot_vllm_fig9_style(result_dir=args.dir,
-                         ttft_slo=args.ttft_slo,
-                         tpot_slo=args.tpot_slo,
-                         atta_target=args.target)
+    
+    if args.compare:
+        # Comparison mode
+        if not args.simple_dir or not args.nixl_dir:
+            print("Error: --simple-dir and --nixl-dir are required for comparison mode")
+            return 1
+        
+        plot_comparison(simple_dir=args.simple_dir,
+                       nixl_dir=args.nixl_dir,
+                       ttft_slo=args.ttft_slo,
+                       tpot_slo=args.tpot_slo,
+                       atta_target=args.atta_target)
+    else:
+        # Normal mode
+        if not args.result_dir:
+            print("Error: --result-dir is required for normal mode")
+            return 1
+        
+        plot_vllm_fig9_style(result_dir=args.result_dir,
+                             ttft_slo=args.ttft_slo,
+                             tpot_slo=args.tpot_slo,
+                             atta_target=args.atta_target)
+    
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())

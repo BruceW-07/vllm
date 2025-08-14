@@ -22,7 +22,7 @@ SMI_BIN=$(which nvidia-smi || which rocm-smi)
 
 # Benchmark configuration
 NUM_PROMPT="100"
-REQUEST_RATES=(0.5 1.0 2.0 4.0 8.0 16.0)
+REQUEST_RATES=(0.5 1.0 1.5 2.0 2.5 3.0)
 
 # Trap the SIGINT signal (triggered by Ctrl+C)
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
