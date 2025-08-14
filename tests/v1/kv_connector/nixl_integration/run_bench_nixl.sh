@@ -15,6 +15,9 @@ NUM_DECODE_INSTANCES=${NUM_DECODE_INSTANCES:-1}   # Default to 1
 PREFILLER_TP_SIZE=${PREFILLER_TP_SIZE:-1}
 DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
+# GPU allocation settings
+START_GPU_ID=${START_GPU_ID:-0}  # Starting GPU ID to use
+
 # Find the git repository root directory
 GIT_ROOT=$(git rev-parse --show-toplevel)
 
@@ -74,6 +77,7 @@ run_tests_for_model() {
   echo "  Decode instances: $NUM_DECODE_INSTANCES"
   echo "  Prefiller TP size: $PREFILLER_TP_SIZE"
   echo "  Decoder TP size: $DECODER_TP_SIZE"
+  echo "  Starting GPU ID: $START_GPU_ID"
   echo "  Prompts per test: $NUM_PROMPT"
   echo "  Request rates: ${REQUEST_RATES[*]}"
   echo "================================"
@@ -89,18 +93,24 @@ run_tests_for_model() {
 
   # Start prefill instances
   for i in $(seq 0 $((NUM_PREFILL_INSTANCES-1))); do
-    # Calculate GPU ID - we'll distribute across available GPUs
-    GPU_ID=$((i + 4 % $(get_num_gpus)))
+    # Calculate GPU devices for this instance based on TP size
+    start_gpu=$((START_GPU_ID + i * PREFILLER_TP_SIZE))
+    if [ "$PREFILLER_TP_SIZE" -eq 1 ]; then
+      GPU_DEVICES="$start_gpu"
+    else
+      # For TP > 1, use consecutive GPUs
+      GPU_DEVICES=$(seq -s, $start_gpu $((start_gpu + PREFILLER_TP_SIZE - 1)))
+    fi
 
     # Calculate port number (base port + instance number)
     PORT=$((8150 + i))
     # Calculate side channel port. Avoid clash with with TP workers. 
     SIDE_CHANNEL_PORT=$((5559 + i))
 
-    echo "Starting prefill instance $i on GPU $GPU_ID, port $PORT"
+    echo "Starting prefill instance $i on GPU(s) $GPU_DEVICES, port $PORT (TP size: $PREFILLER_TP_SIZE)"
 
     # Build the command with or without model-specific args
-    BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_ID VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
+    BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
     --port $PORT \
     --enforce-eager \
     --gpu-memory-utilization 0.2 \
@@ -123,17 +133,27 @@ run_tests_for_model() {
 
   # Start decode instances
   for i in $(seq 0 $((NUM_DECODE_INSTANCES-1))); do
-    # Calculate GPU ID - we'll distribute across available GPUs, starting from after prefill GPUs
-    GPU_ID=$(((i + 4 + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
+    # Calculate GPU devices for this instance based on TP size
+    # Start decode instances after all prefill GPUs
+    total_prefill_gpus=$((NUM_PREFILL_INSTANCES * PREFILLER_TP_SIZE))
+    start_gpu=$((START_GPU_ID + total_prefill_gpus + i * DECODER_TP_SIZE))
+    
+    if [ "$DECODER_TP_SIZE" -eq 1 ]; then
+      GPU_DEVICES="$start_gpu"
+    else
+      # For TP > 1, use consecutive GPUs
+      GPU_DEVICES=$(seq -s, $start_gpu $((start_gpu + DECODER_TP_SIZE - 1)))
+    fi
+    
     # Calculate port number (base port + instance number)
     PORT=$((8250 + i))
     # Calculate side channel port
     SIDE_CHANNEL_PORT=$((5659 + i * $DECODER_TP_SIZE))
 
-    echo "Starting decode instance $i on GPU $GPU_ID, port $PORT"
+    echo "Starting decode instance $i on GPU(s) $GPU_DEVICES, port $PORT (TP size: $DECODER_TP_SIZE)"
 
     # Build the command with or without model-specific args
-    BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_ID VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
+    BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
     --port $PORT \
     --enforce-eager \
     --gpu-memory-utilization 0.2 \

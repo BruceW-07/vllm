@@ -16,6 +16,9 @@ MODELS=(
 TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE:-1}
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.8}
 
+# GPU allocation settings
+START_GPU_ID=${START_GPU_ID:-0}  # Starting GPU ID to use
+
 # Find the git repository root directory
 GIT_ROOT=$(git rev-parse --show-toplevel)
 
@@ -73,6 +76,7 @@ run_tests_for_model() {
   echo "  Dataset: $DATASET_NAME"
   echo "  Tensor Parallel size: $TENSOR_PARALLEL_SIZE"
   echo "  GPU Memory Utilization: $GPU_MEMORY_UTILIZATION"
+  echo "  Starting GPU ID: $START_GPU_ID"
   echo "  Prompts per test: $NUM_PROMPT"
   echo "  Request rates: ${REQUEST_RATES[*]}"
   echo "================================"
@@ -80,14 +84,20 @@ run_tests_for_model() {
   # Get model-specific arguments
   local model_args=$(get_model_args "$model_name")
 
-  # Use first available GPU
-  GPU_ID=0
+  # Set GPU devices based on tensor parallel size and starting GPU ID
+  if [ "$TENSOR_PARALLEL_SIZE" -eq 1 ]; then
+    GPU_DEVICES="$START_GPU_ID"
+  else
+    # For TP > 1, use consecutive GPUs starting from START_GPU_ID
+    GPU_DEVICES=$(seq -s, $START_GPU_ID $((START_GPU_ID + TENSOR_PARALLEL_SIZE - 1)))
+  fi
+  
   SERVER_PORT=8000
 
-  echo "Starting vLLM server on GPU $GPU_ID, port $SERVER_PORT"
+  echo "Starting vLLM server on GPU(s) $GPU_DEVICES, port $SERVER_PORT (TP size: $TENSOR_PARALLEL_SIZE)"
 
   # Build the command with or without model-specific args
-  BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_ID vllm serve $model_name \
+  BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES vllm serve $model_name \
     --port $SERVER_PORT \
     --enforce-eager \
     --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
