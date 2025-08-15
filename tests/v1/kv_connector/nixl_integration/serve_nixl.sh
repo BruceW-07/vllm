@@ -7,7 +7,7 @@ DATASET_NAME=${1:-"sharegpt"}
 
 # Models to run
 MODELS=(
-    "/workspace/models/Qwen3-0.6B"
+    "/workspace/models/Qwen3-8B"
 )
 
 # Number of prefill and decode instances to create
@@ -111,9 +111,9 @@ run_tests_for_model() {
     fi
 
     # Calculate port number (base port + instance number)
-    PORT=$((8150 + i))
+    PORT=$((8157 + i))
     # Calculate side channel port. Avoid clash with TP workers. 
-    SIDE_CHANNEL_PORT=$((5559 + i))
+    SIDE_CHANNEL_PORT=$((5564 + i))
 
     echo "Starting prefill instance $i on GPU(s) $GPU_DEVICES, port $PORT (TP size: $PREFILLER_TP_SIZE)"
 
@@ -152,9 +152,9 @@ run_tests_for_model() {
     fi
     
     # Calculate port number (base port + instance number)
-    PORT=$((8250 + i))
+    PORT=$((8257 + i))
     # Calculate side channel port
-    SIDE_CHANNEL_PORT=$((5659 + i * $DECODER_TP_SIZE))
+    SIDE_CHANNEL_PORT=$((5664 + i * $DECODER_TP_SIZE))
 
     echo "Starting decode instance $i on GPU(s) $GPU_DEVICES, port $PORT (TP size: $DECODER_TP_SIZE)"
 

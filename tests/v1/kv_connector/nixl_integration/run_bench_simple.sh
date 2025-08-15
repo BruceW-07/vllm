@@ -9,7 +9,7 @@ DATASET_NAME=${1:-"sharegpt"}
 
 # Models to run
 MODELS=(
-    "/workspace/models/Qwen3-0.6B"
+    "/workspace/models/Qwen3-8B"
 )
 
 # Simple configuration (no PD separation)
@@ -26,7 +26,7 @@ SMI_BIN=$(which nvidia-smi || which rocm-smi)
 
 # Benchmark configuration
 NUM_PROMPT="100"
-REQUEST_RATES=(0.5 1.0 1.5 2.0 2.5 3.0)
+REQUEST_RATES=(3.0 2.5 2.0 1.5 1.0 0.5)
 
 # Trap the SIGINT signal (triggered by Ctrl+C)
 trap 'pkill -f "vllm serve" || true; exit' SIGINT SIGTERM EXIT
@@ -100,6 +100,7 @@ run_tests_for_model() {
   BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES vllm serve $model_name \
     --port $SERVER_PORT \
     --enforce-eager \
+    --no-enable-chunked-prefill \
     --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
     --tensor-parallel-size $TENSOR_PARALLEL_SIZE \
     --no-enable-prefix-caching"
@@ -161,7 +162,8 @@ run_tests_for_model() {
         "model_name=$MODEL_NAME" \
         "config_suffix=$CONFIG_SUFFIX" \
         "deployment_mode=simple" \
-        "prefix_caching=disabled"
+        "prefix_caching=disabled" \
+        "chunked_prefill=disabled"
     
     echo "Completed benchmark with request rate $REQUEST_RATE"
     

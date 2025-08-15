@@ -9,7 +9,7 @@ DATASET_NAME=${1:-"sharegpt"}
 
 # Models to run
 MODELS=(
-    "/workspace/models/Qwen3-0.6B"
+    "/workspace/models/Qwen3-8B"
 )
 
 # LMCache configuration (PD separation using v0 method)
@@ -27,7 +27,7 @@ SMI_BIN=$(which nvidia-smi || which rocm-smi)
 
 # Benchmark configuration
 NUM_PROMPT="100"
-REQUEST_RATES=(0.5 1.0 1.5 2.0 2.5 3.0)
+REQUEST_RATES=(3.0 2.5 2.0 1.5 1.0 0.5)
 
 # Trap the SIGINT signal (triggered by Ctrl+C)
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
@@ -96,6 +96,7 @@ start_prefiller() {
     --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
     --disable-frontend-multiprocessing \
     --no-enable-prefix-caching \
+    --no-enable-chunked-prefill \
     --kv-transfer-config \
     '{"kv_connector":"LMCacheConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2}' \
     $model_args &
@@ -120,6 +121,7 @@ start_decoder() {
     --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
     --disable-frontend-multiprocessing \
     --no-enable-prefix-caching \
+    --no-enable-chunked-prefill \
     --kv-transfer-config \
     '{"kv_connector":"LMCacheConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2}' \
     $model_args &
@@ -260,6 +262,7 @@ run_tests_for_model() {
         "deployment_mode=lmcache_v0" \
         "kv_connector=LMCacheConnector" \
         "prefix_caching=disabled" \
+        "chunked_prefill=disabled" \
         "lmcache_server_port=$LMCACHE_SERVER_PORT"
     
     echo "Completed benchmark with request rate $REQUEST_RATE"

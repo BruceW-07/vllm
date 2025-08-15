@@ -6,7 +6,7 @@ DATASET_NAME=${1:-"sharegpt"}
 
 # Models to run
 MODELS=(
-    "/workspace/models/Qwen3-0.6B"
+    "/workspace/models/Qwen3-8B"
 )
 
 # Number of prefill and decode instances to create
@@ -26,7 +26,7 @@ SMI_BIN=$(which nvidia-smi || which rocm-smi)
 
 # Benchmark configuration
 NUM_PROMPT="100"
-REQUEST_RATES=(0.5 1.0 1.5 2.0 2.5 3.0)
+REQUEST_RATES=(3.0 2.5 2.0 1.5 1.0 0.5)
 
 # Trap the SIGINT signal (triggered by Ctrl+C)
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
@@ -114,9 +114,9 @@ run_tests_for_model() {
     fi
 
     # Calculate port number (base port + instance number)
-    PORT=$((8150 + i))
+    PORT=$((8157 + i))
     # Calculate side channel port. Avoid clash with TP workers. 
-    SIDE_CHANNEL_PORT=$((5559 + i))
+    SIDE_CHANNEL_PORT=$((5564 + i))
 
     echo "Starting prefill instance $i on GPU(s) $GPU_DEVICES, port $PORT (TP size: $PREFILLER_TP_SIZE)"
 
@@ -124,6 +124,7 @@ run_tests_for_model() {
     BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
     --port $PORT \
     --enforce-eager \
+    --no-enable-chunked-prefill \
     --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
     --tensor-parallel-size $PREFILLER_TP_SIZE \
     --kv-transfer-config '{\"kv_connector\":\"NixlConnector\",\"kv_role\":\"kv_both\"}' \
@@ -155,9 +156,9 @@ run_tests_for_model() {
     fi
     
     # Calculate port number (base port + instance number)
-    PORT=$((8250 + i))
+    PORT=$((8257 + i))
     # Calculate side channel port
-    SIDE_CHANNEL_PORT=$((5659 + i * $DECODER_TP_SIZE))
+    SIDE_CHANNEL_PORT=$((5664 + i * $DECODER_TP_SIZE))
 
     echo "Starting decode instance $i on GPU(s) $GPU_DEVICES, port $PORT (TP size: $DECODER_TP_SIZE)"
 
@@ -165,6 +166,7 @@ run_tests_for_model() {
     BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_NIXL_SIDE_CHANNEL_PORT=$SIDE_CHANNEL_PORT vllm serve $model_name \
     --port $PORT \
     --enforce-eager \
+    --no-enable-chunked-prefill \
     --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
     --tensor-parallel-size $DECODER_TP_SIZE \
     --kv-transfer-config '{\"kv_connector\":\"NixlConnector\",\"kv_role\":\"kv_both\"}' \
@@ -261,7 +263,8 @@ run_tests_for_model() {
         "config_suffix=$CONFIG_SUFFIX" \
         "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION" \
         "kv_connector=NixlConnector" \
-        "prefix_caching=disabled"
+        "prefix_caching=disabled" \
+        "chunked_prefill=disabled"
     
     echo "Completed benchmark with request rate $REQUEST_RATE"
     
