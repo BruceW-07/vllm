@@ -101,7 +101,8 @@ run_tests_for_model() {
     --port $SERVER_PORT \
     --enforce-eager \
     --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
-    --tensor-parallel-size $TENSOR_PARALLEL_SIZE"
+    --tensor-parallel-size $TENSOR_PARALLEL_SIZE \
+    --no-enable-prefix-caching"
 
   if [ -n "$model_args" ]; then
     FULL_CMD="$BASE_CMD $model_args"
@@ -160,7 +161,7 @@ run_tests_for_model() {
         "model_name=$MODEL_NAME" \
         "config_suffix=$CONFIG_SUFFIX" \
         "deployment_mode=simple" \
-        "prefix_caching=enabled"
+        "prefix_caching=disabled"
     
     echo "Completed benchmark with request rate $REQUEST_RATE"
     

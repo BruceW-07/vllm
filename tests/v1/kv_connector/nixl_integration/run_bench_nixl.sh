@@ -16,7 +16,7 @@ PREFILLER_TP_SIZE=${PREFILLER_TP_SIZE:-1}
 DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
 # GPU allocation and memory settings
-GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.2}  # GPU memory utilization
+GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.8}  # GPU memory utilization
 
 # Find the git repository root directory
 GIT_ROOT=$(git rev-parse --show-toplevel)
