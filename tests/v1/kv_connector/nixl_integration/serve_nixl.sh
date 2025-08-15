@@ -18,6 +18,7 @@ DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
 # GPU allocation and memory settings
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.8}  # GPU memory utilization
+START_GPU_ID=${START_GPU_ID:-0}  # Starting GPU ID to use
 
 # Find the git repository root directory
 GIT_ROOT=$(git rev-parse --show-toplevel)
@@ -75,15 +76,17 @@ run_tests_for_model() {
   echo "  Prefiller TP size: $PREFILLER_TP_SIZE"
   echo "  Decoder TP size: $DECODER_TP_SIZE"
   echo "  GPU Memory Utilization: $GPU_MEMORY_UTILIZATION"
+  echo "  Starting GPU ID: $START_GPU_ID"
   echo "  Prompts per test: $NUM_PROMPT"
   echo "  Request rates: ${REQUEST_RATES[*]}"
   echo "================================"
 
   # Display GPU allocation strategy
-  echo "GPU Allocation Strategy (similar to run_accuracy_test.sh):"
+  echo "GPU Allocation Strategy:"
   echo "  Total available GPUs: $(get_num_gpus)"
-  echo "  Prefill instances will use GPUs in round-robin: 0, 1, 2, ..., $(($(get_num_gpus) - 1)), 0, 1, ..."
-  echo "  Decode instances will start from GPU index: $NUM_PREFILL_INSTANCES"
+  echo "  Starting GPU ID: $START_GPU_ID"
+  echo "  Prefill instances will use GPUs starting from: $START_GPU_ID"
+  echo "  Decode instances will use GPUs starting from: $((START_GPU_ID + NUM_PREFILL_INSTANCES))"
   echo ""
 
   # Get model-specific arguments
@@ -97,13 +100,13 @@ run_tests_for_model() {
 
   # Start prefill instances
   for i in $(seq 0 $((NUM_PREFILL_INSTANCES-1))); do
-    # Calculate GPU ID - distribute across available GPUs (like run_accuracy_test.sh)
+    # Calculate GPU ID - distribute across available GPUs starting from START_GPU_ID
     if [ "$PREFILLER_TP_SIZE" -eq 1 ]; then
-      GPU_ID=$((i % $(get_num_gpus)))
+      GPU_ID=$(((START_GPU_ID + i) % $(get_num_gpus)))
       GPU_DEVICES="$GPU_ID"
     else
       # For TP > 1, use consecutive GPUs starting from calculated base
-      base_gpu=$((i % $(get_num_gpus)))
+      base_gpu=$(((START_GPU_ID + i) % $(get_num_gpus)))
       GPU_DEVICES=$(seq -s, $base_gpu $((base_gpu + PREFILLER_TP_SIZE - 1)))
     fi
 
@@ -138,13 +141,13 @@ run_tests_for_model() {
 
   # Start decode instances
   for i in $(seq 0 $((NUM_DECODE_INSTANCES-1))); do
-    # Calculate GPU ID - distribute across available GPUs, starting from after prefill instances (like run_accuracy_test.sh)
+    # Calculate GPU ID - distribute across available GPUs, starting from after prefill instances
     if [ "$DECODER_TP_SIZE" -eq 1 ]; then
-      GPU_ID=$(((i + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
+      GPU_ID=$(((START_GPU_ID + i + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
       GPU_DEVICES="$GPU_ID"
     else
       # For TP > 1, use consecutive GPUs starting from calculated base
-      base_gpu=$(((i + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
+      base_gpu=$(((START_GPU_ID + i + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
       GPU_DEVICES=$(seq -s, $base_gpu $((base_gpu + DECODER_TP_SIZE - 1)))
     fi
     
