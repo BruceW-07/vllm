@@ -27,6 +27,7 @@ SMI_BIN=$(which nvidia-smi || which rocm-smi)
 # Benchmark configuration
 NUM_PROMPT="100"
 REQUEST_RATES=(3.0 2.5 2.0 1.5 1.0 0.5)
+CUSTOM_OUTPUT_LEN=${CUSTOM_OUTPUT_LEN:-128}  # Custom output length for benchmark
 
 # Trap the SIGINT signal (triggered by Ctrl+C)
 trap 'pkill -f "vllm serve" || true; exit' SIGINT SIGTERM EXIT
@@ -155,6 +156,7 @@ run_tests_for_model() {
       --result-dir $RESULTS_DIR \
       --save-detailed \
       --save-result \
+      --custom-output-len $CUSTOM_OUTPUT_LEN \
       --metadata \
         "tensor_parallel_size=$TENSOR_PARALLEL_SIZE" \
         "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION" \
