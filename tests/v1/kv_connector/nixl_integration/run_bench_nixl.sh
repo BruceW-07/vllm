@@ -17,7 +17,9 @@ DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
 # GPU allocation and memory settings
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.8}  # GPU memory utilization
-START_GPU_ID=${START_GPU_ID:-0}  # Starting GPU ID to use
+START_GPU_ID=${START_GPU_ID:-2}  # 建议默认从2开始
+PREFILL_BASE_PORT=8157
+DECODE_BASE_PORT=8257
 
 # Find the git repository root directory
 GIT_ROOT=$(git rev-parse --show-toplevel)
@@ -115,7 +117,7 @@ run_tests_for_model() {
     fi
 
     # Calculate port number (base port + instance number)
-    PORT=$((8157 + i))
+    PORT=$((PREFILL_BASE_PORT + i))
     # Calculate side channel port. Avoid clash with TP workers. 
     SIDE_CHANNEL_PORT=$((5564 + i))
 
@@ -164,7 +166,7 @@ run_tests_for_model() {
     fi
     
     # Calculate port number (base port + instance number)
-    PORT=$((8257 + i))
+    PORT=$((DECODE_BASE_PORT + i))
     # Calculate side channel port
     SIDE_CHANNEL_PORT=$((5664 + i * $DECODER_TP_SIZE))
 
@@ -280,7 +282,10 @@ run_tests_for_model() {
         "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION" \
         "kv_connector=NixlConnector" \
         "prefix_caching=disabled" \
-        "chunked_prefill=disabled"
+        "chunked_prefill=disabled" \
+        "max_model_len=10000" \
+        "max_num_batched_tokens=10000" \
+        "max_num_seqs=256"
     
     echo "Completed benchmark with request rate $REQUEST_RATE"
     

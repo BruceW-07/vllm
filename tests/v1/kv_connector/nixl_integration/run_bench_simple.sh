@@ -17,7 +17,7 @@ TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE:-1}
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.8}
 
 # GPU allocation settings
-START_GPU_ID=${START_GPU_ID:-0}  # Starting GPU ID to use
+START_GPU_ID=${START_GPU_ID:-0}  # simple模式建议从0开始
 
 # Find the git repository root directory
 GIT_ROOT=$(git rev-parse --show-toplevel)
@@ -93,7 +93,7 @@ run_tests_for_model() {
     GPU_DEVICES=$(seq -s, $START_GPU_ID $((START_GPU_ID + TENSOR_PARALLEL_SIZE - 1)))
   fi
   
-  SERVER_PORT=8000
+  SERVER_PORT=8057
 
   echo "Starting vLLM server on GPU(s) $GPU_DEVICES, port $SERVER_PORT (TP size: $TENSOR_PARALLEL_SIZE)"
 
@@ -172,7 +172,10 @@ run_tests_for_model() {
         "config_suffix=$CONFIG_SUFFIX" \
         "deployment_mode=simple" \
         "prefix_caching=disabled" \
-        "chunked_prefill=disabled"
+        "chunked_prefill=disabled" \
+        "max_model_len=10000" \
+        "max_num_batched_tokens=10000" \
+        "max_num_seqs=256"
     
     echo "Completed benchmark with request rate $REQUEST_RATE"
     

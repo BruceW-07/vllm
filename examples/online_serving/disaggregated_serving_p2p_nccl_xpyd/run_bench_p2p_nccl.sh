@@ -17,7 +17,7 @@ DECODER_TP_SIZE=${DECODER_TP_SIZE:-1}
 
 # GPU分配与内存设置
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.8}
-START_GPU_ID=${START_GPU_ID:-0}
+START_GPU_ID=${START_GPU_ID:-4}  # p2pnccl建议从4开始
 
 # 其他配置
 NUM_PROMPT="100"
@@ -76,11 +76,14 @@ run_tests_for_model() {
   PREFILL_HOSTS=()
   DECODE_HOSTS=()
 
+  PREFILL_BASE_PORT=9157
+  DECODE_BASE_PORT=9257
+
   # 启动Prefill实例
   for i in $(seq 0 $((NUM_PREFILL_INSTANCES-1))); do
     GPU_ID=$(((START_GPU_ID + i) % $(get_num_gpus)))
     GPU_DEVICES="$GPU_ID"
-    PORT=$((9157 + i))
+    PORT=$((PREFILL_BASE_PORT + i))
     KV_PORT=$((21001 + i))
     echo "Starting prefill instance $i on GPU $GPU_DEVICES, port $PORT, KV port $KV_PORT"
     BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_USE_V1=1 vllm serve $model_name \
@@ -113,7 +116,7 @@ run_tests_for_model() {
   for i in $(seq 0 $((NUM_DECODE_INSTANCES-1))); do
     GPU_ID=$(((START_GPU_ID + i + NUM_PREFILL_INSTANCES) % $(get_num_gpus)))
     GPU_DEVICES="$GPU_ID"
-    PORT=$((9257 + i))
+    PORT=$((DECODE_BASE_PORT + i))
     KV_PORT=$((22001 + i))
     echo "Starting decode instance $i on GPU $GPU_DEVICES, port $PORT, KV port $KV_PORT"
     BASE_CMD="CUDA_VISIBLE_DEVICES=$GPU_DEVICES VLLM_USE_V1=1 vllm serve $model_name \
@@ -196,7 +199,10 @@ run_tests_for_model() {
         "gpu_memory_utilization=$GPU_MEMORY_UTILIZATION" \
         "kv_connector=P2pNcclConnector" \
         "prefix_caching=disabled" \
-        "chunked_prefill=disabled"
+        "chunked_prefill=disabled" \
+        "max_model_len=10000" \
+        "max_num_batched_tokens=10000" \
+        "max_num_seqs=256"
     echo "Completed benchmark with request rate $REQUEST_RATE"
     sleep 10
   done

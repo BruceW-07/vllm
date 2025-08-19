@@ -203,3 +203,9 @@ shellcheck*/
 
 # Ignore moe/marlin_moe gen code
 csrc/moe/marlin_moe_wna16/kernel_*
+
+results/
+plots/
+nixl_installers/
+gsm8k/
+aimo-validation-aime/
