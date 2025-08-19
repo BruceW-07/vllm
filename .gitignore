@@ -206,6 +206,6 @@ csrc/moe/marlin_moe_wna16/kernel_*
 
 results/
 plots/
-nixl_installers/
+nixl_installer/
 gsm8k/
 aimo-validation-aime/
