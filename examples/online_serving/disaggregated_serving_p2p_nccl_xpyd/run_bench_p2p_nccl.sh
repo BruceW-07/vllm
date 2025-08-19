@@ -71,6 +71,13 @@ run_tests_for_model() {
 
   local model_args=$(get_model_args "$model_name")
 
+  # 启动proxy server
+  PROXY_PORT=10001
+  PROXY_CMD="python $(dirname "$0")/disagg_proxy_p2p_nccl_xpyd.py"
+  echo "Starting proxy server with command: $PROXY_CMD"
+  $PROXY_CMD &
+  sleep 5
+
   PREFILL_PORTS=()
   DECODE_PORTS=()
   PREFILL_HOSTS=()
@@ -101,7 +108,7 @@ run_tests_for_model() {
       --disable-log-requests \
       --no-enable-prefix-caching \
       --no-enable-chunked-prefill \
-      --kv-transfer-config '{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_producer\",\"kv_buffer_size\":\"1e1\",\"kv_port\":\"$KV_PORT\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"30777\",\"http_port\":\"$PORT\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}'"
+      --kv-transfer-config '{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_producer\",\"kv_buffer_size\":\"1e1\",\"kv_port\":\"$KV_PORT\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"30001\",\"http_port\":\"$PORT\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}'"
     if [ -n "$model_args" ]; then
       FULL_CMD="$BASE_CMD $model_args"
     else
@@ -134,7 +141,7 @@ run_tests_for_model() {
       --disable-log-requests \
       --no-enable-prefix-caching \
       --no-enable-chunked-prefill \
-      --kv-transfer-config '{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_consumer\",\"kv_buffer_size\":\"8e9\",\"kv_port\":\"$KV_PORT\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"30777\",\"http_port\":\"$PORT\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}'"
+      --kv-transfer-config '{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_consumer\",\"kv_buffer_size\":\"8e9\",\"kv_port\":\"$KV_PORT\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"30001\",\"http_port\":\"$PORT\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}'"
     if [ -n "$model_args" ]; then
       FULL_CMD="$BASE_CMD $model_args"
     else
@@ -154,13 +161,6 @@ run_tests_for_model() {
     echo "Waiting for decode instance on port $PORT to start..."
     wait_for_server $PORT
   done
-
-  # 启动proxy server
-  PROXY_PORT=30777
-  PROXY_CMD="python disagg_proxy_p2p_nccl_xpyd.py --port $PROXY_PORT"
-  echo "Starting proxy server with command: $PROXY_CMD"
-  $PROXY_CMD &
-  sleep 5
 
   SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
   TIMESTAMP=$(date +%Y%m%d_%H%M%S)
