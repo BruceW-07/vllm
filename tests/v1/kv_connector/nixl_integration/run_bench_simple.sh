@@ -104,7 +104,14 @@ run_tests_for_model() {
     --no-enable-chunked-prefill \
     --gpu-memory-utilization $GPU_MEMORY_UTILIZATION \
     --tensor-parallel-size $TENSOR_PARALLEL_SIZE \
-    --no-enable-prefix-caching"
+    --no-enable-prefix-caching \
+    --seed 1024 \
+    --dtype float16 \
+    --max-model-len 10000 \
+    --max-num-batched-tokens 10000 \
+    --max-num-seqs 256 \
+    --trust-remote-code \
+    --disable-log-request"
 
   if [ -n "$model_args" ]; then
     FULL_CMD="$BASE_CMD $model_args"

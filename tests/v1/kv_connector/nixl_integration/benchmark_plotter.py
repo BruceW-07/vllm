@@ -498,17 +498,19 @@ def plot_vllm_fig9_style(result_dir: str = ".",
 def plot_comparison(simple_dir: Optional[str] = None,
                    nixl_dir: Optional[str] = None,
                    lmcache_dir: Optional[str] = None,
+                   p2pnccl_dir: Optional[str] = None,
                    ttft_slo: float = 125.0,
                    tpot_slo: float = 200.0,
                    atta_target: float = 90.0,
                    use_separate_rates: bool = False,
                    mode_filter: str = "both"):
-    """Create comparison plots among Simple, NIXL, and LMCache modes
+    """Create comparison plots among Simple, NIXL, LMCache, and P2P NCCL modes
     
     Args:
         simple_dir: Directory containing Simple mode result files (optional)
         nixl_dir: Directory containing NIXL mode result files (optional)
         lmcache_dir: Directory containing LMCache mode result files (optional)
+        p2pnccl_dir: Directory containing P2P NCCL mode result files (optional)
         ttft_slo: TTFT SLO threshold in milliseconds (default: 125ms)
         tpot_slo: TPOT SLO threshold in milliseconds (default: 200ms)
         atta_target: Target attainment rate percentage (default: 90%)
@@ -544,6 +546,15 @@ def plot_comparison(simple_dir: Optional[str] = None,
         mode_data["lmcache"] = {
             "dir": lmcache_dir,
             "backend": Backend("lmcache", "LMCache Mode", "#91cc75"),
+            "files_and_rates": []
+        }
+
+    # 新增对 P2P NCCL 模式的支持
+    if p2pnccl_dir:
+        available_modes.append("p2pnccl")
+        mode_data["p2pnccl"] = {
+            "dir": p2pnccl_dir,
+            "backend": Backend("p2pnccl", "P2P NCCL Mode", "#f5b041"),
             "files_and_rates": []
         }
 
@@ -861,6 +872,8 @@ def main():
                        help="Use separate request rate sets instead of common intersection (default: use intersection)")
     parser.add_argument("--mode-filter", type=str, default="both", choices=["ttft", "tpot", "both"],
                        help="SLO type filter for comparison plots (default: both)")
+    parser.add_argument("--p2pnccl-dir", type=str,
+                       help="Directory containing P2P NCCL mode benchmark results (optional)")
     
     args = parser.parse_args()
     
@@ -873,14 +886,15 @@ def main():
             provided_dirs += 1
         if args.lmcache_dir:
             provided_dirs += 1
-            
+        if args.p2pnccl_dir:
+            provided_dirs += 1
         if provided_dirs < 2:
-            print("Error: At least two mode directories (--simple-dir, --nixl-dir, --lmcache-dir) are required for comparison mode")
+            print("Error: At least two mode directories (--simple-dir, --nixl-dir, --lmcache-dir, --p2pnccl-dir) are required for comparison mode")
             return 1
-        
         plot_comparison(simple_dir=args.simple_dir,
                        nixl_dir=args.nixl_dir,
                        lmcache_dir=args.lmcache_dir,
+                       p2pnccl_dir=args.p2pnccl_dir,
                        ttft_slo=args.ttft_slo,
                        tpot_slo=args.tpot_slo,
                        atta_target=args.atta_target,
