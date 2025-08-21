@@ -126,7 +126,7 @@ async def handle_request():
         original_request_data = await request.get_json()
 
         prefill_request = original_request_data.copy()
-        # change max_tokens = 1 to let it only do prefill
+        # Set max_tokens = 1 to make prefill only
         prefill_request["max_tokens"] = 1
 
         global count
@@ -157,19 +157,20 @@ async def handle_request():
         )
 
 
-        # finish prefill, collect timing
+
+        # finish prefill, collect timing (only take the first chunk)
         prefill_timing = {}
-        prefill_response_content = b""
+        first_chunk = None
         async for chunk in forward_request(
             f"http://{prefill_addr}{request.path}", prefill_request, request_id
         ):
-            prefill_response_content += chunk
+            first_chunk = chunk
+            break
 
-        # 尝试解析 prefill 响应中的 vllm_timing
+        # Only parse vllm_timing from the first chunk
         try:
             import json
-            # 兼容 data: ... 格式
-            content_str = prefill_response_content.decode("utf-8")
+            content_str = first_chunk.decode("utf-8") if first_chunk else ""
             if content_str.startswith("data: "):
                 data_str = content_str[6:].strip()
                 if data_str and data_str != "[DONE]":
@@ -180,7 +181,7 @@ async def handle_request():
         except Exception as e:
             print(f"Failed to parse prefill vllm_timing: {e}")
 
-        # return decode,在第一个chunk注入timing
+        # return decode, inject timing info into the first chunk
         async def generate_stream():
             first_chunk = True
             async for chunk in forward_request(
