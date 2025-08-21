@@ -5,7 +5,6 @@ import argparse
 import itertools
 import logging
 import os
-import time
 import uuid
 from contextlib import asynccontextmanager
 
@@ -15,16 +14,6 @@ from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-def get_timestamp_ms():
-    """Get current timestamp in milliseconds"""
-    return int(time.time() * 1000)
-
-
-def format_duration_ms(start_time_ms, end_time_ms):
-    """Format duration in milliseconds"""
-    return end_time_ms - start_time_ms
 
 
 @asynccontextmanager
@@ -213,26 +202,13 @@ async def _handle_completions(api: str, request: Request):
     try:
         req_data = await request.json()
         request_id = str(uuid.uuid4())
-        
-        # Record proxy start time
-        proxy_start_ms = get_timestamp_ms()
-        logger.info(f"[PROXY_START] request_id={request_id} "
-                   f"proxy_start_ms={proxy_start_ms}")
 
         # Get the next prefill client in round-robin fashion
         prefill_client_info = get_next_client(request.app, 'prefill')
 
         # Send request to prefill service
-        prefill_start_ms = get_timestamp_ms()
-        
         response = await send_request_to_service(prefill_client_info, api,
                                                  req_data, request_id)
-        
-        prefill_end_ms = get_timestamp_ms()
-        prefill_duration_ms = format_duration_ms(prefill_start_ms, prefill_end_ms)
-        logger.info(f"[PREFILL_REQUEST_END] request_id={request_id} "
-                   f"prefill_end_ms={prefill_end_ms} "
-                   f"prefill_duration_ms={prefill_duration_ms}")
 
         # Extract the needed fields
         response_json = response.json()
@@ -247,40 +223,24 @@ async def _handle_completions(api: str, request: Request):
             timing = response_json['vllm_timing']
             prefill_timing['prefill_queued_time'] = timing.get('queued_time')
             prefill_timing['prefill_execute_time'] = timing.get('execute_time')
-            logger.info(f"[PREFILL_TIMING] request_id={request_id} "
-                       f"prefill_queued_ms={timing.get('queued_time', 0) * 1000:.1f} "
-                       f"prefill_execute_ms={timing.get('execute_time', 0) * 1000:.1f}")
+        else:
+            logger.debug("No vllm_timing found in prefill response")
 
         # Get the next decode client in round-robin fashion
         decode_client_info = get_next_client(request.app, 'decode')
 
-        # Calculate gap between prefill and decode
-        decode_start_ms = get_timestamp_ms()
-        prefill_to_decode_gap_ms = format_duration_ms(prefill_end_ms, decode_start_ms)
-        logger.info(f"[DECODE_REQUEST_START] request_id={request_id} "
-                   f"decode_start_ms={decode_start_ms} "
-                   f"prefill_to_decode_gap_ms={prefill_to_decode_gap_ms}")
+        logger.debug("Using %s %s", prefill_client_info, decode_client_info)
 
         # Stream response from decode service
         async def generate_stream():
-            first_token_ms = None
-            
+            first_chunk = True
             async for chunk in stream_service_response(decode_client_info,
                                                        api,
                                                        req_data,
                                                        request_id=request_id):
-                current_time_ms = get_timestamp_ms()
-                
-                # Record first token time
-                if first_token_ms is None:
-                    first_token_ms = current_time_ms
-                    decode_queue_time_ms = format_duration_ms(decode_start_ms, first_token_ms)
-                    logger.info(f"[FIRST_TOKEN] request_id={request_id} "
-                               f"first_token_ms={first_token_ms} "
-                               f"decode_queue_time_ms={decode_queue_time_ms}")
-                
                 # Inject prefill timing into the first chunk
-                if first_token_ms == current_time_ms and prefill_timing:
+                if first_chunk and prefill_timing:
+                    first_chunk = False
                     try:
                         import json
 
@@ -311,14 +271,6 @@ async def _handle_completions(api: str, request: Request):
                         logger.warning("Failed to inject timing info: %s", e)
 
                 yield chunk
-            
-            # Log completion
-            completion_time_ms = get_timestamp_ms()
-            total_duration_ms = format_duration_ms(proxy_start_ms, completion_time_ms)
-            
-            logger.info(f"[REQUEST_COMPLETE] request_id={request_id} "
-                       f"completion_time_ms={completion_time_ms} "
-                       f"total_duration_ms={total_duration_ms}")
 
         return StreamingResponse(generate_stream(),
                                  media_type="application/json")
@@ -327,8 +279,10 @@ async def _handle_completions(api: str, request: Request):
         import sys
         import traceback
         exc_info = sys.exc_info()
-        logger.error(f"Error occurred in disagg prefill proxy server - {api} endpoint: {e}")
-        logger.error("".join(traceback.format_exception(*exc_info)))
+        print("Error occurred in disagg prefill proxy server"
+              f" - {api} endpoint")
+        print(e)
+        print("".join(traceback.format_exception(*exc_info)))
         raise
 
 
@@ -355,17 +309,6 @@ async def healthcheck():
 if __name__ == '__main__':
     global global_args
     global_args = parse_args()
-    
-    # Setup logging with timestamp
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
-    logger.info(f"[PROXY_INIT] Starting proxy server on {global_args.host}:{global_args.port}")
-    logger.info(f"[PROXY_CONFIG] Prefiller instances: {global_args.prefiller_instances}")
-    logger.info(f"[PROXY_CONFIG] Decoder instances: {global_args.decoder_instances}")
 
     import uvicorn
     uvicorn.run(app, host=global_args.host, port=global_args.port)
