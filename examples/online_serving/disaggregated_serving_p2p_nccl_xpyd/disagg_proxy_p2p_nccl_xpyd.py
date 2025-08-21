@@ -156,19 +156,60 @@ async def handle_request():
             f"{decode_zmq_addr}_{random_uuid()}"
         )
 
-        # finish prefill
-        async for _ in forward_request(
+
+        # finish prefill, collect timing
+        prefill_timing = {}
+        prefill_response_content = b""
+        async for chunk in forward_request(
             f"http://{prefill_addr}{request.path}", prefill_request, request_id
         ):
-            continue
+            prefill_response_content += chunk
 
-        # return decode
-        generator = forward_request(
-            f"http://{decode_addr}{request.path}", original_request_data, request_id
-        )
-        response = await make_response(generator)
+        # 尝试解析 prefill 响应中的 vllm_timing
+        try:
+            import json
+            # 兼容 data: ... 格式
+            content_str = prefill_response_content.decode("utf-8")
+            if content_str.startswith("data: "):
+                data_str = content_str[6:].strip()
+                if data_str and data_str != "[DONE]":
+                    data = json.loads(data_str)
+                    timing = data.get("vllm_timing", {})
+                    prefill_timing["prefill_queued_time"] = timing.get("queued_time")
+                    prefill_timing["prefill_execute_time"] = timing.get("execute_time")
+        except Exception as e:
+            print(f"Failed to parse prefill vllm_timing: {e}")
+
+        # return decode,在第一个chunk注入timing
+        async def generate_stream():
+            first_chunk = True
+            async for chunk in forward_request(
+                f"http://{decode_addr}{request.path}", original_request_data, request_id
+            ):
+                if first_chunk and prefill_timing:
+                    first_chunk = False
+                    try:
+                        import json
+                        chunk_str = chunk.decode("utf-8")
+                        if chunk_str.startswith("data: "):
+                            data_str = chunk_str[6:].strip()
+                            if data_str and data_str != "[DONE]":
+                                data = json.loads(data_str)
+                                timing = data.get("vllm_timing", {})
+                                if "queued_time" in timing and "execute_time" in timing:
+                                    data["vllm_timing"] = {
+                                        "prefill_queued_time": prefill_timing.get("prefill_queued_time"),
+                                        "prefill_execute_time": prefill_timing.get("prefill_execute_time"),
+                                        "decode_queued_time": timing["queued_time"],
+                                        "decode_execute_time": timing["execute_time"],
+                                    }
+                                    chunk = f"data: {json.dumps(data)}\n\n".encode()
+                    except Exception as e:
+                        print(f"Failed to inject timing info: {e}")
+                yield chunk
+
+        response = await make_response(generate_stream())
         response.timeout = None
-
         return response
 
     except Exception as e:
