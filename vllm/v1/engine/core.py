@@ -298,6 +298,9 @@ class EngineCore:
         """
         assert self.batch_queue is not None
 
+        num_running, num_waiting = self.scheduler.get_request_counts()
+        logger.info(f"Running {num_running} requests, waiting for {num_waiting} requests")
+
         engine_core_outputs = None
         scheduler_output = None
         # Try to schedule a new batch if the batch queue is not full, but
