@@ -161,23 +161,30 @@ async def handle_request():
         # finish prefill, collect timing (only take the first chunk)
         prefill_timing = {}
         first_chunk = None
+        got_first_chunk = False
         async for chunk in forward_request(
             f"http://{prefill_addr}{request.path}", prefill_request, request_id
         ):
-            first_chunk = chunk
-            break
+            if not got_first_chunk:
+                first_chunk = chunk
+                got_first_chunk = True
+            else:
+                continue
 
-        # Only parse vllm_timing from the first chunk
+        # Only parse vllm_timing from the first data block in the chunk
         try:
             import json
             content_str = first_chunk.decode("utf-8") if first_chunk else ""
-            if content_str.startswith("data: "):
-                data_str = content_str[6:].strip()
-                if data_str and data_str != "[DONE]":
-                    data = json.loads(data_str)
-                    timing = data.get("vllm_timing", {})
-                    prefill_timing["prefill_queued_time"] = timing.get("queued_time")
-                    prefill_timing["prefill_execute_time"] = timing.get("execute_time")
+            # Split chunk by SSE protocol (each block starts with 'data: ')
+            for line in content_str.splitlines():
+                if line.startswith("data: "):
+                    data_str = line[6:].strip()
+                    if data_str and data_str != "[DONE]":
+                        data = json.loads(data_str)
+                        timing = data.get("vllm_timing", {})
+                        prefill_timing["prefill_queued_time"] = timing.get("queued_time")
+                        prefill_timing["prefill_execute_time"] = timing.get("execute_time")
+                        break  # Only use timing from the first data block
         except Exception as e:
             print(f"Failed to parse prefill vllm_timing: {e}")
 
