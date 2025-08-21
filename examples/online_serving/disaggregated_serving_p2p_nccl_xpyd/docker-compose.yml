@@ -13,7 +13,7 @@ services:
     cap_add:
       - SYS_PTRACE
     security_opt:
-      - seccomp=unconfirmed
+      - seccomp=unconfined
     ports:
       - "30001:30001"
     networks:
@@ -49,7 +49,7 @@ services:
     cap_add:
       - SYS_PTRACE
     security_opt:
-      - seccomp=unconfirmed
+      - seccomp=unconfined
     depends_on:
       - proxy
     networks:
@@ -85,7 +85,7 @@ services:
     cap_add:
       - SYS_PTRACE
     security_opt:
-      - seccomp=unconfirmed
+      - seccomp=unconfined
     depends_on:
       - proxy
     networks:
@@ -121,7 +121,7 @@ services:
     cap_add:
       - SYS_PTRACE
     security_opt:
-      - seccomp=unconfirmed
+      - seccomp=unconfined
     depends_on:
       - prefill
       - decode
