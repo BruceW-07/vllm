@@ -138,21 +138,14 @@ async def modified_generator(original_generator, prefill_timing):
                     if data_str and data_str != '[DONE]':
                         data = json.loads(data_str)
                         # Preserve decode timing and add prefill timing info
-                        if 'vllm_timing' in data:
-                            decode_timing = data['vllm_timing']
-                            # Create new timing object with both prefill and decode timing
-                            data['vllm_timing'] = {
-                                'prefill_queued_time': prefill_timing.get('prefill_queued_time'),
-                                'prefill_execute_time': prefill_timing.get('prefill_execute_time'),
-                                'decode_queued_time': decode_timing.get('queued_time'),
-                                'decode_execute_time': decode_timing.get('execute_time'),
-                            }
-                        else:
-                            # If no timing info exists, create new timing object with just prefill timing
-                            data['vllm_timing'] = {
-                                'prefill_queued_time': prefill_timing.get('prefill_queued_time'),
-                                'prefill_execute_time': prefill_timing.get('prefill_execute_time'),
-                            }
+                        decode_timing = data['vllm_timing']
+                        # Create new timing object with both prefill and decode timing
+                        data['vllm_timing'] = {
+                            'prefill_queued_time': prefill_timing.get('prefill_queued_time'),
+                            'prefill_execute_time': prefill_timing.get('prefill_execute_time'),
+                            'decode_queued_time': decode_timing.get('queued_time'),
+                            'decode_execute_time': decode_timing.get('execute_time'),
+                        }
                         
                         # Reconstruct chunk
                         chunk = f"data: {json.dumps(data)}\n\n".encode()
