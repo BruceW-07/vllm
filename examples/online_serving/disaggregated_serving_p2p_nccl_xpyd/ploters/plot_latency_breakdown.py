@@ -158,8 +158,8 @@ def plot_latency_breakdown(benchmark_data, output_file=None):
     # Colors as specified
     prefill_queue_color = 'lightgreen'    # Prefill Queuing
     prefill_execute_color = 'green'       # Prefill Execution
-    decode_queue_color = 'skyblue'        # Decoding Queueing
-    decode_execute_color = 'lightblue'    # Decoding Execution
+    decode_queue_color = 'skyblue'     # Decoding Queueing (deeper blue than skyblue)
+    decode_execute_color = 'dodgerblue'    # Decoding Execution
     
     # Create stacked bar chart
     bar_width = 0.35
