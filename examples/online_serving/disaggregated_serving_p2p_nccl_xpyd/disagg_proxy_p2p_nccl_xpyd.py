@@ -119,6 +119,49 @@ async def forward_request(url, data, request_id):
                     yield content
 
 
+async def modified_generator(original_generator, prefill_timing):
+    """
+    A generator that modifies the first chunk to include prefill timing information.
+    """
+    first_chunk = True
+    async for chunk in original_generator:
+        # Inject prefill timing into the first chunk
+        if first_chunk and prefill_timing:
+            first_chunk = False
+            try:
+                import json
+                
+                # Parse the chunk to inject timing info
+                chunk_str = chunk.decode('utf-8')
+                if chunk_str.startswith('data: '):
+                    data_str = chunk_str[6:].strip()
+                    if data_str and data_str != '[DONE]':
+                        data = json.loads(data_str)
+                        # Preserve decode timing and add prefill timing info
+                        if 'vllm_timing' in data:
+                            decode_timing = data['vllm_timing']
+                            # Create new timing object with both prefill and decode timing
+                            data['vllm_timing'] = {
+                                'prefill_queued_time': prefill_timing.get('prefill_queued_time'),
+                                'prefill_execute_time': prefill_timing.get('prefill_execute_time'),
+                                'decode_queued_time': decode_timing.get('queued_time'),
+                                'decode_execute_time': decode_timing.get('execute_time'),
+                            }
+                        else:
+                            # If no timing info exists, create new timing object with just prefill timing
+                            data['vllm_timing'] = {
+                                'prefill_queued_time': prefill_timing.get('prefill_queued_time'),
+                                'prefill_execute_time': prefill_timing.get('prefill_execute_time'),
+                            }
+                        
+                        # Reconstruct chunk
+                        chunk = f"data: {json.dumps(data)}\n\n".encode()
+            except Exception as e:
+                print(f"Failed to inject timing info: {e}")
+        
+        yield chunk
+
+
 @app.route("/v1/completions", methods=["POST"])
 @app.route("/v1/chat/completions", methods=["POST"])
 async def handle_request():
@@ -188,36 +231,17 @@ async def handle_request():
         except Exception as e:
             print(f"Failed to parse prefill vllm_timing: {e}")
 
-        # return decode, inject timing info into the first chunk
-        async def generate_stream():
-            first_chunk = True
-            async for chunk in forward_request(
-                f"http://{decode_addr}{request.path}", original_request_data, request_id
-            ):
-                if first_chunk and prefill_timing:
-                    first_chunk = False
-                    try:
-                        import json
-                        chunk_str = chunk.decode("utf-8")
-                        if chunk_str.startswith("data: "):
-                            data_str = chunk_str[6:].strip()
-                            if data_str and data_str != "[DONE]":
-                                data = json.loads(data_str)
-                                timing = data.get("vllm_timing", {})
-                                if "queued_time" in timing and "execute_time" in timing:
-                                    data["vllm_timing"] = {
-                                        "prefill_queued_time": prefill_timing.get("prefill_queued_time"),
-                                        "prefill_execute_time": prefill_timing.get("prefill_execute_time"),
-                                        "decode_queued_time": timing["queued_time"],
-                                        "decode_execute_time": timing["execute_time"],
-                                    }
-                                    chunk = f"data: {json.dumps(data)}\n\n".encode()
-                    except Exception as e:
-                        print(f"Failed to inject timing info: {e}")
-                yield chunk
+        # return decode
+        generator = forward_request(
+            f"http://{decode_addr}{request.path}", original_request_data, request_id
+        )
 
-        response = await make_response(generate_stream())
+        # Use modified generator to inject prefill timing into the first chunk
+        modified_gen = modified_generator(generator, prefill_timing)
+
+        response = await make_response(modified_gen)
         response.timeout = None
+
         return response
 
     except Exception as e:
