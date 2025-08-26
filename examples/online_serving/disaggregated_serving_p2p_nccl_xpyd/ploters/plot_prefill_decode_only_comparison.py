@@ -97,6 +97,7 @@ def read_benchmark_data(folder_path):
                     prefill_queue_time_ms = json_data.get(f'{percentile}_prefill_queue_time_ms')
                     prefill_execute_time_ms = json_data.get(f'{percentile}_prefill_execute_time_ms')
                     decode_execute_time_ms = json_data.get(f'{percentile}_decode_execute_time_ms')
+                    decode_queue_time_ms = json_data.get(f'{percentile}_decode_queue_time_ms')
                     
                     if ttft_ms is not None and tpot_ms is not None:
                         # Calculate simplified TTFT for this percentile
@@ -104,7 +105,12 @@ def read_benchmark_data(folder_path):
                             simplified_ttft = (prefill_queue_time_ms +
                                               prefill_execute_time_ms +
                                               decode_execute_time_ms)
-                            metrics[percentile] = (float(ttft_ms), float(tpot_ms), float(simplified_ttft))
+                            # Calculate p2pnccl without kvtransfer TTFT (simplified_ttft + decode_queue)
+                            if decode_queue_time_ms is not None:
+                                no_kvtransfer_ttft = simplified_ttft + decode_queue_time_ms
+                                metrics[percentile] = (float(ttft_ms), float(tpot_ms), float(simplified_ttft), float(no_kvtransfer_ttft))
+                            else:
+                                metrics[percentile] = (float(ttft_ms), float(tpot_ms), float(simplified_ttft))
                         else:
                             metrics[percentile] = (float(ttft_ms), float(tpot_ms))
                 
@@ -165,6 +171,7 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
     p2p_nccl_ttft = []
     p2p_nccl_tpot = []
     p2p_nccl_simplified_ttft = []
+    p2p_nccl_no_kvtransfer_ttft = []
     # Request rates that have data in both configurations
     valid_rates = []
     
@@ -189,6 +196,12 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
                 p2p_nccl_simplified_ttft.append(p2p_nccl_data[rate][percentile][2])
             else:
                 p2p_nccl_simplified_ttft.append(None)
+                
+            # Extract p2pnccl without kvtransfer TTFT data if available
+            if len(p2p_nccl_data[rate][percentile]) > 3:
+                p2p_nccl_no_kvtransfer_ttft.append(p2p_nccl_data[rate][percentile][3])
+            else:
+                p2p_nccl_no_kvtransfer_ttft.append(None)
     
     if not valid_rates:
         print(f"No common request rates found between the two configurations for {percentile}.")
@@ -201,9 +214,10 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
     p2p_nccl_ttft_s = [ttft / 1000 for ttft in p2p_nccl_ttft]
     p2p_nccl_tpot_s = [tpot / 1000 for tpot in p2p_nccl_tpot]
     p2p_nccl_simplified_ttft_s = [ttft / 1000 if ttft is not None else None for ttft in p2p_nccl_simplified_ttft]
+    p2p_nccl_no_kvtransfer_ttft_s = [ttft / 1000 if ttft is not None else None for ttft in p2p_nccl_no_kvtransfer_ttft]
     
-    # Set up the plot with three subplots
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 12))
+    # Set up the plot with four subplots
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 16))
     
     # Colors and markers as specified
     existing_color = 'blue'      # Existing systems
@@ -217,41 +231,55 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
              label='Existing systems (TTFT)')
     ax1.plot(valid_rates, p2p_nccl_simplified_ttft_s,
              color=prefill_color, marker=marker_style, linewidth=2, markersize=6,
-             label='Prefill-only (Simplified TTFT)')
+             label='Prefill-only (TTFT without KVTransfer and DecodeQueue)')
     ax1.set_xlabel('Rate(reqs/s)')
-    ax1.set_ylabel(f'{percentile.upper()} TTFT/Simplified TTFT(s)')
-    ax1.set_title(f'{percentile.upper()} TTFT vs Simplified TTFT Comparison')
+    ax1.set_ylabel(f'{percentile.upper()} TTFT/TTFT without KVTransfer and DecodeQueue(s)')
+    ax1.set_title(f'{percentile.upper()} TTFT vs TTFT without KVTransfer and DecodeQueue Comparison')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     ax1.set_xticks(valid_rates)
     
-    # Plot TTFT comparison (middle subplot)
+    # Plot p2pnccl without kvtransfer TTFT vs simple TTFT comparison (second subplot)
     ax2.plot(valid_rates, simple_ttft_s,
              color=existing_color, marker=marker_style, linewidth=2, markersize=6,
-             label='Existing systems')
-    ax2.plot(valid_rates, p2p_nccl_ttft_s,
-             color=prefill_color, marker=marker_style, linewidth=2, markersize=6,
-             label='Prefill-only')
+             label='Existing systems (TTFT)')
+    ax2.plot(valid_rates, p2p_nccl_no_kvtransfer_ttft_s,
+             color=decode_color, marker=marker_style, linewidth=2, markersize=6,
+             label='Decode-only (No KVTransfer)')
     ax2.set_xlabel('Rate(reqs/s)')
     ax2.set_ylabel(f'{percentile.upper()} TTFT(s)')
-    ax2.set_title(f'{percentile.upper()} TTFT Comparison')
+    ax2.set_title(f'{percentile.upper()} TTFT Comparison (Existing systems vs Decode-only without KVTransfer)')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     ax2.set_xticks(valid_rates)
     
-    # Plot TPOT comparison (bottom subplot)
-    ax3.plot(valid_rates, simple_tpot_s,
+    # Plot TTFT comparison (third subplot)
+    ax3.plot(valid_rates, simple_ttft_s,
              color=existing_color, marker=marker_style, linewidth=2, markersize=6,
              label='Existing systems')
-    ax3.plot(valid_rates, p2p_nccl_tpot_s,
-             color=decode_color, marker=marker_style, linewidth=2, markersize=6,
-             label='Decode-only')
+    ax3.plot(valid_rates, p2p_nccl_ttft_s,
+             color=prefill_color, marker=marker_style, linewidth=2, markersize=6,
+             label='Prefill-only')
     ax3.set_xlabel('Rate(reqs/s)')
-    ax3.set_ylabel(f'{percentile.upper()} TPOT(s)')
-    ax3.set_title(f'{percentile.upper()} TPOT Comparison')
+    ax3.set_ylabel(f'{percentile.upper()} TTFT(s)')
+    ax3.set_title(f'{percentile.upper()} TTFT Comparison')
     ax3.legend()
     ax3.grid(True, alpha=0.3)
     ax3.set_xticks(valid_rates)
+    
+    # Plot TPOT comparison (fourth subplot)
+    ax4.plot(valid_rates, simple_tpot_s,
+             color=existing_color, marker=marker_style, linewidth=2, markersize=6,
+             label='Existing systems')
+    ax4.plot(valid_rates, p2p_nccl_tpot_s,
+             color=decode_color, marker=marker_style, linewidth=2, markersize=6,
+             label='Decode-only')
+    ax4.set_xlabel('Rate(reqs/s)')
+    ax4.set_ylabel(f'{percentile.upper()} TPOT(s)')
+    ax4.set_title(f'{percentile.upper()} TPOT Comparison')
+    ax4.legend()
+    ax4.grid(True, alpha=0.3)
+    ax4.set_xticks(valid_rates)
     
     plt.tight_layout()
     
