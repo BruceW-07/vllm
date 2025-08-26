@@ -138,14 +138,23 @@ async def async_request_openai_completions(
                                     # token
                                     if data.get("vllm_timing"):
                                         timing = data["vllm_timing"]
-                                        output.prefill_queued_time = timing.get(
-                                            "prefill_queued_time")
-                                        output.prefill_execute_time = timing.get(
-                                            "prefill_execute_time")
-                                        output.decode_queued_time = timing.get(
-                                            "decode_queued_time")
-                                        output.decode_execute_time = timing.get(
-                                            "decode_execute_time")
+                                        if timing.get("prefill_queued_time"):
+                                            output.prefill_queued_time = timing.get(
+                                                "prefill_queued_time")
+                                            output.prefill_execute_time = timing.get(
+                                                "prefill_execute_time")
+                                            output.decode_queued_time = timing.get(
+                                                "decode_queued_time")
+                                            output.decode_execute_time = timing.get(
+                                                "decode_execute_time")
+                                        else:
+                                            # No PD disagg
+                                            output.prefill_queued_time = timing.get(
+                                                "queued_time")
+                                            output.prefill_execute_time = timing.get(
+                                                "execute_time")
+                                            output.decode_queued_time = None
+                                            output.decode_execute_time = None
 
                                 # Decoding phase
                                 else:
