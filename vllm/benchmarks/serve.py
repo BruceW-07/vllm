@@ -67,7 +67,7 @@ def parse_kv_transfer_times_from_log(log_file_path: str = "decode_instance_0.log
     pattern = r'INFO.*\[kv_connector_model_runner_mixin\.py:\d+\] Request .* total KV transfer time: ([\d.]+)s'
     
     try:
-        with open(log_file_path, 'r', encoding='utf-8') as f:
+        with open(log_file_path, encoding='utf-8') as f:
             first_entry_skipped = False
             for line in f:
                 match = re.search(pattern, line)
