@@ -244,11 +244,11 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
              color=existing_color, marker=marker_style, linewidth=2, markersize=6,
              label='Existing systems (TTFT)')
     ax2.plot(valid_rates, p2p_nccl_no_kvtransfer_ttft_s,
-             color=decode_color, marker=marker_style, linewidth=2, markersize=6,
-             label='Decode-only (No KVTransfer)')
+             color=prefill_color, marker=marker_style, linewidth=2, markersize=6,
+             label='Prefill-only (No KVTransfer)')
     ax2.set_xlabel('Rate(reqs/s)')
     ax2.set_ylabel(f'{percentile.upper()} TTFT(s)')
-    ax2.set_title(f'{percentile.upper()} TTFT Comparison (Existing systems vs Decode-only without KVTransfer)')
+    ax2.set_title(f'{percentile.upper()} TTFT Comparison (Existing systems vs Prefill-only without KVTransfer)')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     ax2.set_xticks(valid_rates)
