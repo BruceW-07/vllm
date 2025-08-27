@@ -99,7 +99,7 @@ main() {
     echo "Starting integrated benchmark script for simple mode..."
     
     # Create results directory
-    mkdir -p "$RESULTS_DIR"
+    mkdir -p "$SCRIPT_DIR/$RESULTS_DIR"
     
     # Start the serving
     echo "Starting serving..."
@@ -111,7 +111,7 @@ main() {
         echo "Running benchmark with request rate: $REQUEST_RATE, total prompts: $NUM_PROMPTS"
         
         # Run the benchmark
-        vllm bench serve \
+        cd "$SCRIPT_DIR" && vllm bench serve \
             --backend vllm \
             --model "$MODEL" \
             --endpoint /v1/completions \
@@ -126,7 +126,7 @@ main() {
             --num_prompt $NUM_PROMPTS \
             --save-result \
             --save-detailed \
-            --result-dir ./$RESULTS_DIR \
+            --result-dir $SCRIPT_DIR/$RESULTS_DIR \
             --port $SERVER_PORT
             
         echo "Benchmark with request rate $REQUEST_RATE and $NUM_PROMPTS prompts completed."

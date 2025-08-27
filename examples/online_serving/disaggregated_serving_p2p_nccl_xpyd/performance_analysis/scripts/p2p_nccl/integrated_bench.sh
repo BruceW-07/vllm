@@ -23,7 +23,7 @@ PROXY_APP_PORT=${PROXY_APP_PORT:-10001}
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROXY_SCRIPT="$SCRIPT_DIR/../../../disagg_proxy_p2p_nccl_xpyd.py"
-DECODE_LOG="decode1.log"
+DECODE_LOG="$SCRIPT_DIR/decode1.log"
 RESULTS_DIR="results"
 REQUEST_RATES=(1 2 3 4 5 6 7 8 9 10 11)
 
@@ -183,7 +183,7 @@ start_serving() {
         --trust-remote-code \
         --gpu-memory-utilization 0.9 \
         --kv-transfer-config \
-        "{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_producer\",\"kv_buffer_size\":\"1e1\",\"kv_port\":\"$kv_port\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"$PROXY_SERVICE_DISCOVERY_PORT\",\"http_port\":\"$port\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}" > prefill$((i+1)).log 2>&1 &
+        "{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_producer\",\"kv_buffer_size\":\"1e1\",\"kv_port\":\"$kv_port\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"$PROXY_SERVICE_DISCOVERY_PORT\",\"http_port\":\"$port\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}" > "$SCRIPT_DIR/prefill$((i+1)).log" 2>&1 &
         PIDS+=($!)
     done
     
@@ -210,7 +210,7 @@ start_serving() {
         --trust-remote-code \
         --gpu-memory-utilization 0.7 \
         --kv-transfer-config \
-        "{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_consumer\",\"kv_buffer_size\":\"8e9\",\"kv_port\":\"$kv_port\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"$PROXY_SERVICE_DISCOVERY_PORT\",\"http_port\":\"$port\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}" > decode$((i+1)).log 2>&1 &
+        "{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_consumer\",\"kv_buffer_size\":\"8e9\",\"kv_port\":\"$kv_port\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"$PROXY_SERVICE_DISCOVERY_PORT\",\"http_port\":\"$port\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}" > "$SCRIPT_DIR/decode$((i+1)).log" 2>&1 &
         PIDS+=($!)
     done
     
@@ -235,7 +235,7 @@ main() {
     echo "Starting integrated benchmark script..."
     
     # Create results directory
-    mkdir -p "$RESULTS_DIR"
+    mkdir -p "$SCRIPT_DIR/$RESULTS_DIR"
     
     # Start the proxy server
     echo "Starting proxy server..."
@@ -254,7 +254,7 @@ main() {
         clear_decode_log
         
         # Run the benchmark
-        vllm bench serve \
+        cd "$SCRIPT_DIR" && vllm bench serve \
             --backend vllm \
             --model "$MODEL_PATH" \
             --endpoint /v1/completions \
@@ -269,7 +269,7 @@ main() {
             --num_prompt $NUM_PROMPTS \
             --save-result \
             --save-detailed \
-            --result-dir ./$RESULTS_DIR \
+            --result-dir $SCRIPT_DIR/$RESULTS_DIR \
             --port $PROXY_APP_PORT
             
         echo "Benchmark with request rate $REQUEST_RATE and $NUM_PROMPTS prompts completed."
