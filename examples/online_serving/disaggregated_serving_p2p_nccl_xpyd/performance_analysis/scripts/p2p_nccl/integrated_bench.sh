@@ -22,7 +22,7 @@ PROXY_APP_PORT=${PROXY_APP_PORT:-10001}
 
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROXY_SCRIPT="$SCRIPT_DIR/../../disagg_proxy_p2p_nccl_xpyd.py"
+PROXY_SCRIPT="$SCRIPT_DIR/../../../disagg_proxy_p2p_nccl_xpyd.py"
 DECODE_LOG="decode1.log"
 RESULTS_DIR="results"
 REQUEST_RATES=(1 2 3 4 5 6 7 8 9 10 11)
