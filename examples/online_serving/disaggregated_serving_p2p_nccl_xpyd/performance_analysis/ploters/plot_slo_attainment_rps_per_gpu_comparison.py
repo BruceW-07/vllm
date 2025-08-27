@@ -265,7 +265,10 @@ def plot_slo_attainment_comparison(simple_data, p2p_nccl_data, ttft_limit, tpot_
     if output_file:
         output_filename = output_file
     else:
-        output_filename = 'slo_attainment_rps_per_gpu_comparison.png'
+        # Create default plots directory if it doesn't exist
+        default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
+        os.makedirs(default_plots_dir, exist_ok=True)
+        output_filename = os.path.join(default_plots_dir, 'slo_attainment_rps_per_gpu_comparison.png')
     
     plt.savefig(output_filename, dpi=300, bbox_inches='tight')
     print(f"Plot saved to {output_filename}")
@@ -276,8 +279,8 @@ def main():
     parser = argparse.ArgumentParser(description='Plot SLO attainment comparison with RPS/GPU')
     parser.add_argument('simple_folder', help='Path to the simple configuration results folder')
     parser.add_argument('p2p_nccl_folder', help='Path to the p2p_nccl configuration results folder')
-    parser.add_argument('--output', '-o', default='slo_attainment_rps_per_gpu_comparison.png',
-                        help='Output file path for the plot (PNG format). Default: slo_attainment_rps_per_gpu_comparison.png')
+    parser.add_argument('--output', '-o',
+                        help='Output file path for the plot (PNG format). Default: ../plots/slo_attainment_rps_per_gpu_comparison.png')
     parser.add_argument('--ttft-limit', type=float, default=400.0,
                         help='TTFT limit in milliseconds (default: 400)')
     parser.add_argument('--tpot-limit', type=float, default=40.0,

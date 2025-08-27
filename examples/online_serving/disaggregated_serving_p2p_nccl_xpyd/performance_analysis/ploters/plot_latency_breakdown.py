@@ -199,7 +199,10 @@ def plot_latency_breakdown(benchmark_data, output_file=None):
     
     # Use default output file name if none provided
     if not output_file:
-        output_file = "latency_breakdown.png"
+        # Create default plots directory if it doesn't exist
+        default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
+        os.makedirs(default_plots_dir, exist_ok=True)
+        output_file = os.path.join(default_plots_dir, "latency_breakdown.png")
     
     if output_file:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
@@ -336,8 +339,8 @@ def plot_ttft_breakdown(benchmark_data, output_file=None):
 def main():
     parser = argparse.ArgumentParser(description='Plot latency breakdown from benchmark results')
     parser.add_argument('data_folder', help='Path to the data folder containing JSON benchmark results')
-    parser.add_argument('--output', '-o', default='latency_breakdown.png',
-                        help='Output file path for the plot (PNG format). Default: latency_breakdown.png')
+    parser.add_argument('--output', '-o',
+                        help='Output file path for the plot (PNG format). Default: ../plots/latency_breakdown.png or ../plots/ttft_breakdown.png')
     parser.add_argument('--plot-type', '-p', default='both', choices=['latency', 'ttft', 'both'],
                         help='Type of plot to generate. Default: both')
     

@@ -223,7 +223,10 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
         base_name, ext = os.path.splitext(output_file)
         percentile_output_file = f"{base_name}_{percentile}{ext}"
     else:
-        percentile_output_file = f"latency_rps_per_gpu_comparison_{percentile}.png"
+        # Create default plots directory if it doesn't exist
+        default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
+        os.makedirs(default_plots_dir, exist_ok=True)
+        percentile_output_file = os.path.join(default_plots_dir, f"latency_rps_per_gpu_comparison_{percentile}.png")
     
     plt.savefig(percentile_output_file, dpi=300, bbox_inches='tight')
     print(f"Plot saved to {percentile_output_file}")
@@ -234,8 +237,8 @@ def main():
     parser = argparse.ArgumentParser(description='Plot latency results comparison with RPS/GPU')
     parser.add_argument('simple_folder', help='Path to the simple configuration results folder')
     parser.add_argument('p2p_nccl_folder', help='Path to the p2p_nccl configuration results folder')
-    parser.add_argument('--output', '-o', default='latency_rps_per_gpu_comparison.png',
-                        help='Output file path for the plots (PNG format). Default: latency_rps_per_gpu_comparison.png')
+    parser.add_argument('--output', '-o',
+                        help='Output file path for the plots (PNG format). Default: ../plots/latency_rps_per_gpu_comparison_*.png')
     
     args = parser.parse_args()
     
