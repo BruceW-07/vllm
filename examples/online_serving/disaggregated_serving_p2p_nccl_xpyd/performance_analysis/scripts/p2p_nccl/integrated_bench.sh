@@ -4,7 +4,7 @@
 # Integrated Benchmark Script for vLLM Disaggregated Serving
 # =============================================================================
 
-set -e  # Exit on any error
+set -xe  # Exit on any error
 
 # Configuration - can be overridden via environment variables
 MODEL=${MODEL:-meta-llama/Llama-3.1-8B-Instruct}

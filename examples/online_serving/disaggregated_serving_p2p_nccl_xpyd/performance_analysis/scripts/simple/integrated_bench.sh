@@ -4,7 +4,7 @@
 # Integrated Benchmark Script for vLLM Simple Serving
 # =============================================================================
 
-set -e  # Exit on any error
+set -xe  # Exit on any error
 
 # Configuration - can be overridden via environment variables
 MODEL=${MODEL:-/workspace/models/Llama-3.1-8B-Instruct}
