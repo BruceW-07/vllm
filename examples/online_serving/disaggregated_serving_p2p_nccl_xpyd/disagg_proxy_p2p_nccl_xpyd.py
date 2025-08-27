@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
+import argparse
 import os
 import socket
 import threading
@@ -247,7 +248,25 @@ async def handle_request():
         print("".join(traceback.format_exception(*exc_info)))
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Disaggregated Prefill Proxy Server")
+    parser.add_argument(
+        "--service-discovery-port",
+        type=int,
+        default=30001,
+        help="Port for service discovery (default: 30001)"
+    )
+    parser.add_argument(
+        "--app-port",
+        type=int,
+        default=10001,
+        help="Port for the application (default: 10001)"
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    t = start_service_discovery("0.0.0.0", 30001)
-    app.run(host="0.0.0.0", port=10001)
+    args = parse_args()
+    t = start_service_discovery("0.0.0.0", args.service_discovery_port)
+    app.run(host="0.0.0.0", port=args.app_port)
     t.join()
