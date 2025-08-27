@@ -68,8 +68,7 @@ start_serving() {
     echo ""
     
     # Start vLLM service
-    CUDA_VISIBLE_DEVICES=$GPU_ID vllm serve \
-        --model "$MODEL" \
+    CUDA_VISIBLE_DEVICES=$GPU_ID vllm serve "$MODEL" \
         --tensor-parallel-size 1 \
         --seed 1024 \
         --dtype float16 \
