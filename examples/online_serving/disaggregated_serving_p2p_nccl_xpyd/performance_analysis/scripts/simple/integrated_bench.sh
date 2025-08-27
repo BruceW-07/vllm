@@ -106,7 +106,10 @@ main() {
     
     # Run benchmarks
     for REQUEST_RATE in "${REQUEST_RATES[@]}"; do
-        NUM_PROMPTS=$((REQUEST_RATE * 300))
+        # Use bc for floating point arithmetic and convert to integer
+        # bc: command-line calculator that supports floating point operations
+        # cut -d. -f1: extracts the integer part before the decimal point
+        NUM_PROMPTS=$(echo "$REQUEST_RATE * 300" | bc | cut -d. -f1)
         echo "Running benchmark with request rate: $REQUEST_RATE, total prompts: $NUM_PROMPTS"
         
         # Run the benchmark
