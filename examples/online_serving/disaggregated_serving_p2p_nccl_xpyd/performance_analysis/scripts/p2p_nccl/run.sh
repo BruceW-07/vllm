@@ -18,6 +18,7 @@ DECODE_PORTS=${DECODE_PORTS:-20005}
 # Proxy configuration
 PROXY_SERVICE_DISCOVERY_PORT=${PROXY_SERVICE_DISCOVERY_PORT:-30001}
 PROXY_APP_PORT=${PROXY_APP_PORT:-10001}
+PROXY_SCRIPT="$SCRIPT_DIR/../../../disagg_proxy_p2p_nccl_xpyd.py"
 
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -103,9 +104,9 @@ start_serving() {
     export DECODE_GPUS
     export PREFILL_PORTS
     export DECODE_PORTS
-    export PROXY_SERVICE_DISCOVERY_PORT
     export PROXY_APP_PORT
     export MODEL_PATH
+    export PROXY_SCRIPT
     
     # Start serve script in background
     "$SCRIPT_DIR/serve.sh" &
