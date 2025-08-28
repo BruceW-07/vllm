@@ -17,8 +17,8 @@ Usage:
         p2p_nccl_folder   Path to the p2p_nccl configuration results folder
         --output, -o      Output file path for the plot (PNG format)
                           Default: slo_attainment_rps_per_gpu_comparison.png
-        --ttft-limit      TTFT limit in milliseconds (default: 400)
-        --tpot-limit      TPOT limit in milliseconds (default: 40)
+        --ttft-limit      TTFT limit in milliseconds (default: 400) - internally converted to seconds
+        --tpot-limit      TPOT limit in milliseconds (default: 40) - internally converted to seconds
 """
 
 import argparse
@@ -48,10 +48,10 @@ def calculate_slo_attainment(ttfts, tpots, ttft_limit, tpot_limit):
     Calculate SLO attainment percentages for different criteria.
     
     Args:
-        ttfts (list): List of TTFT values in milliseconds
-        tpots (list): List of TPOT values in milliseconds
-        ttft_limit (float): TTFT limit in milliseconds
-        tpot_limit (float): TPOT limit in milliseconds
+        ttfts (list): List of TTFT values in seconds
+        tpots (list): List of TPOT values in seconds
+        ttft_limit (float): TTFT limit in seconds
+        tpot_limit (float): TPOT limit in seconds
     
     Returns:
         tuple: (both_slo, ttft_only_slo, tpot_only_slo) - SLO attainment percentages
@@ -149,8 +149,8 @@ def plot_slo_attainment_comparison(simple_data, p2p_nccl_data, ttft_limit, tpot_
     Args:
         simple_data (dict): Data from simple configuration
         p2p_nccl_data (dict): Data from p2p_nccl configuration
-        ttft_limit (float): TTFT limit in milliseconds
-        tpot_limit (float): TPOT limit in milliseconds
+        ttft_limit (float): TTFT limit in milliseconds (input) but converted to seconds internally
+        tpot_limit (float): TPOT limit in milliseconds (input) but converted to seconds internally
         output_file (str): Output file path for the plot
     """
     # Get all request rates from both datasets
@@ -195,7 +195,7 @@ def plot_slo_attainment_comparison(simple_data, p2p_nccl_data, ttft_limit, tpot_
             simple_ttfts = simple_data[rate]['ttfts']
             simple_tpots = simple_data[rate]['tpots']
             simple_both, simple_ttft_only, simple_tpot_only = calculate_slo_attainment(
-                simple_ttfts, simple_tpots, ttft_limit, tpot_limit)
+                simple_ttfts, simple_tpots, ttft_limit/1000.0, tpot_limit/1000.0)
             simple_both_slo.append(simple_both)
             simple_ttft_slo.append(simple_ttft_only)
             simple_tpot_slo.append(simple_tpot_only)
@@ -205,7 +205,7 @@ def plot_slo_attainment_comparison(simple_data, p2p_nccl_data, ttft_limit, tpot_
             p2p_nccl_ttfts = p2p_nccl_data[rate * 2]['ttfts']
             p2p_nccl_tpots = p2p_nccl_data[rate * 2]['tpots']
             p2p_nccl_both, p2p_nccl_ttft_only, p2p_nccl_tpot_only = calculate_slo_attainment(
-                p2p_nccl_ttfts, p2p_nccl_tpots, ttft_limit, tpot_limit)
+                p2p_nccl_ttfts, p2p_nccl_tpots, ttft_limit/1000.0, tpot_limit/1000.0)
             p2p_nccl_both_slo.append(p2p_nccl_both)
             p2p_nccl_ttft_slo.append(p2p_nccl_ttft_only)
             p2p_nccl_tpot_slo.append(p2p_nccl_tpot_only)
@@ -287,9 +287,9 @@ def main():
     parser.add_argument('--output', '-o',
                         help='Output file path for the plot (PNG format). Default: ../plots/slo_attainment_rps_per_gpu_comparison.png')
     parser.add_argument('--ttft-limit', type=float, default=400.0,
-                        help='TTFT limit in milliseconds (default: 400)')
+                        help='TTFT limit in milliseconds (default: 400) - internally converted to seconds')
     parser.add_argument('--tpot-limit', type=float, default=40.0,
-                        help='TPOT limit in milliseconds (default: 40)')
+                        help='TPOT limit in milliseconds (default: 40) - internally converted to seconds')
     
     args = parser.parse_args()
     
@@ -307,7 +307,7 @@ def main():
         return
     
     # Plot the SLO attainment comparison
-    print(f"Generating SLO attainment comparison plots with TTFT limit={args.ttft_limit}ms, TPOT limit={args.tpot_limit}ms...")
+    print(f"Generating SLO attainment comparison plots with TTFT limit={args.ttft_limit}ms, TPOT limit={args.tpot_limit}ms (internally converted to seconds)...")
     plot_slo_attainment_comparison(simple_data, p2p_nccl_data, args.ttft_limit, args.tpot_limit, args.output)
 
 
