@@ -51,8 +51,8 @@ fi
 # 1. Run plot_latency_breakdown.py for p2p_nccl configuration
 echo ""
 echo "1. Generating latency breakdown plot for p2p_nccl configuration..."
-run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type latency  --output "{$SCRIPT_DIR}/../plots/p2p_nccl_latency_breakdown.png"
-run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type ttft  --output "{$SCRIPT_DIR}/../plots/p2p_nccl_ttft_breakdown.png"
+run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type latency  --output "$SCRIPT_DIR/../plots/p2p_nccl_latency_breakdown.png"
+run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type ttft  --output "$SCRIPT_DIR/../plots/p2p_nccl_ttft_breakdown.png"
 
 # 2. Run plot_latency_rps_per_gpu_comparison.py
 echo ""
