@@ -191,7 +191,7 @@ main() {
     start_serving
     
     # Wait a bit more for all services to be ready
-    sleep 30
+    sleep 10
     
     # Run benchmarks with different datasets
     for BENCH_SCRIPT in "${BENCH_SCRIPTS[@]}"; do

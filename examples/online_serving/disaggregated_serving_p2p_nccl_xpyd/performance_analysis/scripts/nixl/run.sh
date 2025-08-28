@@ -21,6 +21,7 @@ PROXY_PORT=${PROXY_PORT:-10001}
 
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROXY_SCRIPT="$SCRIPT_DIR/../../../../../../tests/v1/kv_connector/nixl_integration/toy_proxy_server.py"
 REQUEST_RATES=${REQUEST_RATES:-"1 2 3 4 5 6 7 8 9 10 11"}
 BENCH_SCRIPT=${BENCH_SCRIPT:-random-512-64.sh}
 
@@ -86,6 +87,30 @@ cleanup() {
 # Trap signals to ensure cleanup
 trap cleanup INT TERM EXIT
 
+# Function to wait for server to be ready
+wait_for_server() {
+    local port=$1
+    local timeout_seconds=$TIMEOUT_SECONDS
+    local start_time=$(date +%s)
+
+    echo "Waiting for server on port $port..."
+    
+    while true; do
+        if curl -s "localhost:${port}/v1/completions" > /dev/null; then
+            echo "Server on port $port is ready."
+            return 0
+        fi
+        
+        local now=$(date +%s)
+        if (( now - start_time >= timeout_seconds )); then
+            echo "Timeout waiting for server on port $port"
+            return 1
+        fi
+        
+        sleep 1
+    done
+}
+
 # Function to start serving
 start_serving() {
     echo "Starting serving components..."
@@ -99,15 +124,38 @@ start_serving() {
     export TP
     export PROXY_PORT
     export MODEL_PATH
+    export PROXY_SCRIPT
     
     # Start serve script in background
     "$SCRIPT_DIR/serve.sh" &
     SERVE_PID=$!
     
-    # Wait for serve to start
-    sleep 10
+    # Wait for all servers to start
+    echo "Waiting for all servers to start..."
     
-    echo "Serving components started with PID $SERVE_PID."
+    # Parse port arrays
+    IFS=',' read -ra PREFILL_PORT_ARRAY <<< "$PREFILL_PORTS"
+    IFS=',' read -ra DECODE_PORT_ARRAY <<< "$DECODE_PORTS"
+    
+    # Wait for prefill servers
+    for port in "${PREFILL_PORT_ARRAY[@]}"; do
+        if ! wait_for_server $port; then
+            echo "Failed to start prefill server on port $port"
+            cleanup
+            exit 1
+        fi
+    done
+    
+    # Wait for decode servers
+    for port in "${DECODE_PORT_ARRAY[@]}"; do
+        if ! wait_for_server $port; then
+            echo "Failed to start decode server on port $port"
+            cleanup
+            exit 1
+        fi
+    done
+    
+    echo "All servers started successfully."
 }
 
 # Function to run benchmarks
@@ -136,7 +184,7 @@ main() {
     start_serving
     
     # Wait a bit more for all services to be ready
-    sleep 30
+    sleep 10
     
     # Run benchmarks
     run_benchmarks
