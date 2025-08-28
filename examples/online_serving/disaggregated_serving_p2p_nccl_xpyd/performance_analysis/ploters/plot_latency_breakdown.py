@@ -3,13 +3,14 @@
 Script to read benchmark results from JSON files and plot latency breakdown as stacked bar chart.
 
 Usage:
-    python plot_latency_breakdown.py <data_folder> [--output OUTPUT_FILE]
+    python plot_latency_breakdown.py <data_folder> [--output OUTPUT_FILE] [--num-gpus NUM_GPUS]
     
     Example:
         python plot_latency_breakdown.py ./p2p_nccl
         python plot_latency_breakdown.py ./p2p_nccl --output latency_breakdown.png
         python plot_latency_breakdown.py ./p2p_nccl --plot-type latency
         python plot_latency_breakdown.py ./p2p_nccl --plot-type ttft
+        python plot_latency_breakdown.py ./p2p_nccl --num-gpus 2
         
     Arguments:
         data_folder     Path to the data folder containing JSON benchmark results
@@ -17,6 +18,8 @@ Usage:
                         Default: latency_breakdown.png
         --plot-type, -p Type of plot to generate (latency, ttft, or both)
                         Default: both
+        --num-gpus      Number of GPUs used in the configuration
+                        Default: 1
 """
 
 import argparse
@@ -115,7 +118,7 @@ def read_benchmark_data(folder_path):
     return data
 
 
-def plot_latency_breakdown(benchmark_data, output_file=None):
+def plot_latency_breakdown(benchmark_data, output_file=None, num_gpus=1):
     """
     Plot E2E latency breakdown as stacked bar chart.
     E2E latency includes: prefill_queue, prefill_execute, decode_queue, total_decode_execute.
@@ -123,6 +126,7 @@ def plot_latency_breakdown(benchmark_data, output_file=None):
     Args:
         benchmark_data (dict): Data from benchmark results
         output_file (str): Output file path for the plot
+        num_gpus (int): Number of GPUs used in the configuration
     """
     # Get all request rates and sort them
     all_rates = list(benchmark_data.keys())
@@ -142,7 +146,7 @@ def plot_latency_breakdown(benchmark_data, output_file=None):
     total_decode_execute_data = []
     
     for rate in sorted_rates:
-        per_gpu_rate = rate / 2.0  # 1p1d configuration
+        per_gpu_rate = rate / num_gpus
         per_gpu_rates.append(per_gpu_rate)
         
         data = benchmark_data[rate]
@@ -210,7 +214,7 @@ def plot_latency_breakdown(benchmark_data, output_file=None):
         print(f"Plot saved to {output_file}")
 
 
-def plot_ttft_breakdown(benchmark_data, output_file=None):
+def plot_ttft_breakdown(benchmark_data, output_file=None, num_gpus=1):
     """
     Plot TTFT breakdown as stacked bar chart.
     TTFT includes: prefill_queue, prefill_execute, kv_transfer, decode_queue, decode_execute.
@@ -219,6 +223,7 @@ def plot_ttft_breakdown(benchmark_data, output_file=None):
     Args:
         benchmark_data (dict): Data from benchmark results
         output_file (str): Output file path for the plot
+        num_gpus (int): Number of GPUs used in the configuration
     """
     # Get all request rates and sort them
     all_rates = list(benchmark_data.keys())
@@ -240,7 +245,7 @@ def plot_ttft_breakdown(benchmark_data, output_file=None):
     ttft_data = []
     
     for rate in sorted_rates:
-        per_gpu_rate = rate / 2.0  # 1p1d configuration
+        per_gpu_rate = rate / num_gpus
         per_gpu_rates.append(per_gpu_rate)
         
         data = benchmark_data[rate]
@@ -250,10 +255,10 @@ def plot_ttft_breakdown(benchmark_data, output_file=None):
         decode_queue_data.append(data['mean_decode_queue_time_ms'])
         first_token_decode_data.append(data['mean_first_token_decode_time_ms'])
         # Calculate actual TTFT from components for comparison
-        ttft_data.append(data['mean_prefill_queue_time_ms'] + 
-                        data['mean_prefill_execute_time_ms'] + 
-                        data['mean_kv_transfer_time_ms'] + 
-                        data['mean_decode_queue_time_ms'] + 
+        ttft_data.append(data['mean_prefill_queue_time_ms'] +
+                        data['mean_prefill_execute_time_ms'] +
+                        data['mean_kv_transfer_time_ms'] +
+                        data['mean_decode_queue_time_ms'] +
                         data['mean_first_token_decode_time_ms'])
     
     # Calculate unknown portion (difference between actual TTFT and sum of components)
@@ -328,13 +333,14 @@ def plot_ttft_breakdown(benchmark_data, output_file=None):
     
     # Use default output file name if none provided
     if not output_file:
-        output_file = "ttft_breakdown.png"
+        # Create default plots directory if it doesn't exist
+        default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
+        os.makedirs(default_plots_dir, exist_ok=True)
+        output_file = os.path.join(default_plots_dir, "ttft_breakdown.png")
     
     if output_file:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         print(f"TTFT breakdown plot saved to {output_file}")
-    else:
-        plt.show()
 
 
 def main():
@@ -344,6 +350,8 @@ def main():
                         help='Output file path for the plot (PNG format). Default: ../plots/latency_breakdown.png or ../plots/ttft_breakdown.png')
     parser.add_argument('--plot-type', '-p', default='both', choices=['latency', 'ttft', 'both'],
                         help='Type of plot to generate. Default: both')
+    parser.add_argument('--num-gpus', type=int, default=1,
+                        help='Number of GPUs used in the configuration. Default: 1')
     
     args = parser.parse_args()
     
@@ -359,19 +367,19 @@ def main():
     # Plot the selected breakdown
     if args.plot_type == 'latency':
         print("Generating latency breakdown plot...")
-        plot_latency_breakdown(benchmark_data, args.output)
+        plot_latency_breakdown(benchmark_data, args.output, args.num_gpus)
     elif args.plot_type == 'ttft':
         print("Generating TTFT breakdown plot...")
         # Generate TTFT breakdown plot with a different default filename if needed
         ttft_output = args.output if args.output != 'latency_breakdown.png' else 'ttft_breakdown.png'
-        plot_ttft_breakdown(benchmark_data, ttft_output)
+        plot_ttft_breakdown(benchmark_data, ttft_output, args.num_gpus)
     elif args.plot_type == 'both':
         print("Generating both latency and TTFT breakdown plots...")
         # Generate both plots with appropriate filenames
         latency_output = args.output if args.output != 'latency_breakdown.png' else 'latency_breakdown.png'
         ttft_output = args.output.replace('latency_breakdown', 'ttft_breakdown') if args.output and 'latency_breakdown' in args.output else 'ttft_breakdown.png'
-        plot_latency_breakdown(benchmark_data, latency_output)
-        plot_ttft_breakdown(benchmark_data, ttft_output)
+        plot_latency_breakdown(benchmark_data, latency_output, args.num_gpus)
+        plot_ttft_breakdown(benchmark_data, ttft_output, args.num_gpus)
 
 
 if __name__ == '__main__':

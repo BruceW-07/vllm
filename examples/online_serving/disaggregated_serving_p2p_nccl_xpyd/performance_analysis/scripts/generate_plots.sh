@@ -51,12 +51,12 @@ fi
 # 1. Run plot_latency_breakdown.py for simple configuration
 echo ""
 echo "1. Generating latency breakdown plot for simple configuration..."
-run_plot_script "plot_latency_breakdown.py" "${simple_results_path}"
+run_plot_script "plot_latency_breakdown.py" "${simple_results_path}" --num-gpus 1
 
 # 2. Run plot_latency_breakdown.py for p2p_nccl configuration
 echo ""
 echo "2. Generating latency breakdown plot for p2p_nccl configuration..."
-run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}"
+run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2
 
 # 3. Run plot_latency_rps_per_gpu_comparison.py
 echo ""
