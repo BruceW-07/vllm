@@ -18,8 +18,6 @@ TP=${TP:-1}
 
 # Proxy configuration
 PROXY_PORT=${PROXY_PORT:-10001}
-PREFILL_PORT=${PREFILL_PORT:-20003}
-DECODE_PORT=${DECODE_PORT:-20005}
 
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -152,8 +150,8 @@ start_proxy() {
     # Start proxy server with specified ports
     python3 "$PROXY_SCRIPT" \
         --port "$PROXY_PORT" \
-        --prefiller-port "$PREFILL_PORT" \
-        --decoder-port "$DECODE_PORT" > "$SCRIPT_DIR/proxy.log" 2>&1 &
+        --prefiller-port "$PREFILL_PORTS" \
+        --decoder-port "$DECODE_PORTS" > "$SCRIPT_DIR/proxy.log" 2>&1 &
     PIDS+=($!)
     
     # Wait a bit for proxy to start
