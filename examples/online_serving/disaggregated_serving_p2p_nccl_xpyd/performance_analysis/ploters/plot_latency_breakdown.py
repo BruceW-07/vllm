@@ -104,7 +104,8 @@ def read_benchmark_data(folder_path):
                     'mean_decode_queue_time_ms': float(mean_decode_queue_time_ms),
                     'mean_first_token_decode_time_ms': float(mean_decode_execute_time_ms),  # First token decode time
                     'mean_total_decode_execute_time_ms': float(mean_total_decode_execute_time_ms),  # All tokens decode time
-                    'mean_kv_transfer_time_ms': float(mean_kv_transfer_time_ms) if mean_kv_transfer_time_ms is not None else 0.0
+                    'mean_kv_transfer_time_ms': float(mean_kv_transfer_time_ms) if mean_kv_transfer_time_ms is not None else 0.0,
+                    'mean_ttft_ms': float(mean_ttft_ms)
                 }
                 
             except Exception as e:
