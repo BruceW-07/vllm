@@ -62,7 +62,7 @@ run_plot_script "plot_latency_rps_per_gpu_comparison.py" "${simple_results_path}
 # 3. Run plot_slo_attainment_rps_per_gpu_comparison.py
 echo ""
 echo "3. Generating SLO attainment RPS per GPU comparison plots..."
-run_plot_script "plot_slo_attainment_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}"
+run_plot_script "plot_slo_attainment_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}" --ttft-limit 100 --tpot-limit 17
 
 echo ""
 echo "All plots have been generated successfully!"
