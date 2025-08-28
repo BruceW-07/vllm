@@ -208,7 +208,6 @@ start_serving() {
           --tensor-parallel-size $TP \
           --enforce-eager \
           --block-size 16 \
-          --enable-log-requests \
           --kv-transfer-config '{"kv_connector":"NixlConnector","kv_role":"kv_both"}' > "$SCRIPT_DIR/prefill$((i+1)).log" 2>&1 &
         PIDS+=($!)
     done
@@ -231,7 +230,6 @@ start_serving() {
           --tensor-parallel-size $TP \
           --enforce-eager \
           --block-size 16 \
-          --enable-log-requests \
           --kv-transfer-config '{"kv_connector":"NixlConnector","kv_role":"kv_both"}' > "$SCRIPT_DIR/decode$((i+1)).log" 2>&1 &
         PIDS+=($!)
     done
