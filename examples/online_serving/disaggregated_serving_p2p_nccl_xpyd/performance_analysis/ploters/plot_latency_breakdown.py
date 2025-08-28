@@ -118,7 +118,7 @@ def read_benchmark_data(folder_path):
     return data
 
 
-def plot_latency_breakdown(benchmark_data, output_file=None, num_gpus=1):
+def plot_latency_breakdown(benchmark_data, output_file, num_gpus=1):
     """
     Plot E2E latency breakdown as stacked bar chart.
     E2E latency includes: prefill_queue, prefill_execute, decode_queue, total_decode_execute.
@@ -202,19 +202,12 @@ def plot_latency_breakdown(benchmark_data, output_file=None, num_gpus=1):
     
     plt.tight_layout()
     
-    # Use default output file name if none provided
-    if not output_file:
-        # Create default plots directory if it doesn't exist
-        default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
-        os.makedirs(default_plots_dir, exist_ok=True)
-        output_file = os.path.join(default_plots_dir, "latency_breakdown.png")
-    
     if output_file:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         print(f"Plot saved to {output_file}")
 
 
-def plot_ttft_breakdown(benchmark_data, output_file=None, num_gpus=1):
+def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     """
     Plot TTFT breakdown as stacked bar chart.
     TTFT includes: prefill_queue, prefill_execute, kv_transfer, decode_queue, decode_execute.
@@ -331,13 +324,6 @@ def plot_ttft_breakdown(benchmark_data, output_file=None, num_gpus=1):
     
     plt.tight_layout()
     
-    # Use default output file name if none provided
-    if not output_file:
-        # Create default plots directory if it doesn't exist
-        default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
-        os.makedirs(default_plots_dir, exist_ok=True)
-        output_file = os.path.join(default_plots_dir, "ttft_breakdown.png")
-    
     if output_file:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         print(f"TTFT breakdown plot saved to {output_file}")
@@ -365,21 +351,29 @@ def main():
         return
     
     # Plot the selected breakdown
-    if args.plot_type == 'latency':
+    # Handle latency breakdown
+    if args.plot_type in ['latency', 'both']:
         print("Generating latency breakdown plot...")
-        plot_latency_breakdown(benchmark_data, args.output, args.num_gpus)
-    elif args.plot_type == 'ttft':
+        # Handle output file path
+        output_file = args.output
+        if not output_file:
+            # Create default plots directory if it doesn't exist
+            default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
+            os.makedirs(default_plots_dir, exist_ok=True)
+            output_file = os.path.join(default_plots_dir, "latency_breakdown.png")
+        plot_latency_breakdown(benchmark_data, output_file, args.num_gpus)
+    
+    # Handle TTFT breakdown
+    if args.plot_type in ['ttft', 'both']:
         print("Generating TTFT breakdown plot...")
-        # Generate TTFT breakdown plot with a different default filename if needed
-        ttft_output = args.output if args.output != 'latency_breakdown.png' else 'ttft_breakdown.png'
-        plot_ttft_breakdown(benchmark_data, ttft_output, args.num_gpus)
-    elif args.plot_type == 'both':
-        print("Generating both latency and TTFT breakdown plots...")
-        # Generate both plots with appropriate filenames
-        latency_output = args.output if args.output != 'latency_breakdown.png' else 'latency_breakdown.png'
-        ttft_output = args.output.replace('latency_breakdown', 'ttft_breakdown') if args.output and 'latency_breakdown' in args.output else 'ttft_breakdown.png'
-        plot_latency_breakdown(benchmark_data, latency_output, args.num_gpus)
-        plot_ttft_breakdown(benchmark_data, ttft_output, args.num_gpus)
+        # Handle output file path
+        output_file = args.output
+        if not output_file or 'latency_breakdown' in output_file:
+            # Create default plots directory if it doesn't exist
+            default_plots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plots")
+            os.makedirs(default_plots_dir, exist_ok=True)
+            output_file = os.path.join(default_plots_dir, "ttft_breakdown.png")
+        plot_ttft_breakdown(benchmark_data, output_file, args.num_gpus)
 
 
 if __name__ == '__main__':
