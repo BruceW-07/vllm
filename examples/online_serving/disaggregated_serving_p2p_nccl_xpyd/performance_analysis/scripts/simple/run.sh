@@ -81,6 +81,30 @@ cleanup() {
 # Trap signals to ensure cleanup
 trap cleanup INT TERM EXIT
 
+# Function to wait for server to be ready
+wait_for_server() {
+    local port=$1
+    local timeout_seconds=300
+    local start_time=$(date +%s)
+
+    echo "Waiting for server on port $port..."
+    
+    while true; do
+        if curl -s "localhost:${port}/v1/completions" > /dev/null; then
+            echo "Server on port $port is ready."
+            return 0
+        fi
+        
+        local now=$(date +%s)
+        if (( now - start_time >= timeout_seconds )); then
+            echo "Timeout waiting for server on port $port"
+            return 1
+        fi
+        
+        sleep 1
+    done
+}
+
 # Function to start serving
 start_serving() {
     echo "Starting serving components..."
@@ -94,8 +118,12 @@ start_serving() {
     "$SCRIPT_DIR/serve.sh" &
     SERVE_PID=$!
     
-    # Wait for serve to start
-    sleep 10
+    # Wait for server to be ready
+    if ! wait_for_server $SERVER_PORT; then
+        echo "Failed to start server on port $SERVER_PORT"
+        cleanup
+        exit 1
+    fi
     
     echo "Serving components started with PID $SERVE_PID."
 }
@@ -126,7 +154,7 @@ main() {
     start_serving
     
     # Wait a bit more for all services to be ready
-    sleep 30
+    sleep 10
     
     # Run benchmarks with different datasets
     for BENCH_SCRIPT in "${BENCH_SCRIPTS[@]}"; do
