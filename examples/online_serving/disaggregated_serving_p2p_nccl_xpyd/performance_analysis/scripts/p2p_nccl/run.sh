@@ -162,13 +162,6 @@ start_serving() {
         fi
     done
     
-    # Wait for proxy server
-    if ! wait_for_server $PROXY_APP_PORT; then
-        echo "Failed to start proxy server on port $PROXY_APP_PORT"
-        cleanup
-        exit 1
-    fi
-    
     echo "All servers started successfully."
 }
 
