@@ -18,10 +18,10 @@ DECODE_PORTS=${DECODE_PORTS:-20005}
 # Proxy configuration
 PROXY_SERVICE_DISCOVERY_PORT=${PROXY_SERVICE_DISCOVERY_PORT:-30001}
 PROXY_APP_PORT=${PROXY_APP_PORT:-10001}
-PROXY_SCRIPT="$SCRIPT_DIR/../../../disagg_proxy_p2p_nccl_xpyd.py"
 
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROXY_SCRIPT="$SCRIPT_DIR/../../../disagg_proxy_p2p_nccl_xpyd.py"
 REQUEST_RATES=${REQUEST_RATES:-"1 2 3 4 5 6 7 8 9 10 11"}
 
 # List of benchmark scripts to run
