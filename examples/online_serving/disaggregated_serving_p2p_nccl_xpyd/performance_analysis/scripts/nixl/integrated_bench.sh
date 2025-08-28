@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================================================================
-# Integrated Benchmark Script for vLLM Disaggregated Serving
+# Integrated Benchmark Script for vLLM Disaggregated Serving with NIXL
 # =============================================================================
 
 set -xe  # Exit on any error
@@ -9,20 +9,21 @@ set -xe  # Exit on any error
 # Configuration - can be overridden via environment variables
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-1200}
 
-# Default 1P3D configuration (1 Prefill + 3 Decode)
+# Default 1P1D configuration (1 Prefill + 1 Decode)
 PREFILL_GPUS=${PREFILL_GPUS:-0}
 DECODE_GPUS=${DECODE_GPUS:-1}
 PREFILL_PORTS=${PREFILL_PORTS:-20003}
 DECODE_PORTS=${DECODE_PORTS:-20005}
+TP=${TP:-1}
 
 # Proxy configuration
-PROXY_SERVICE_DISCOVERY_PORT=${PROXY_SERVICE_DISCOVERY_PORT:-30001}
-PROXY_APP_PORT=${PROXY_APP_PORT:-10001}
+PROXY_PORT=${PROXY_PORT:-10001}
+PREFILL_PORT=${PREFILL_PORT:-20003}
+DECODE_PORT=${DECODE_PORT:-20005}
 
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROXY_SCRIPT="$SCRIPT_DIR/../../../disagg_proxy_p2p_nccl_xpyd.py"
-DECODE_LOG="$SCRIPT_DIR/decode1.log"
+PROXY_SCRIPT="$SCRIPT_DIR/../../../../../tests/v1/kv_connector/nixl_integration/toy_proxy_server.py"
 RESULTS_DIR="results"
 REQUEST_RATES=(1 2 3 4 5 6 7 8 9 10 11)
 
@@ -67,7 +68,7 @@ cleanup() {
     # Additional cleanup for any remaining vllm processes
     echo "Cleaning up any remaining vllm processes..."
     pkill -f "vllm serve" 2>/dev/null || true
-    pkill -f "disagg_proxy_p2p_nccl_xpyd.py" 2>/dev/null || true
+    pkill -f "toy_proxy_server.py" 2>/dev/null || true
     
     # Wait a bit for processes to fully terminate
     sleep 2
@@ -128,12 +129,13 @@ wait_for_server() {
 
 # Function to clear decode log
 clear_decode_log() {
-    if [[ -f "$DECODE_LOG" ]]; then
-        echo "Clearing $DECODE_LOG..."
-        > "$DECODE_LOG"  # Truncate the file
+    local log_file="$SCRIPT_DIR/decode1.log"
+    if [[ -f "$log_file" ]]; then
+        echo "Clearing $log_file..."
+        > "$log_file"  # Truncate the file
     else
-        echo "Creating $DECODE_LOG..."
-        touch "$DECODE_LOG"
+        echo "Creating $log_file..."
+        touch "$log_file"
     fi
 }
 
@@ -149,8 +151,9 @@ start_proxy() {
     
     # Start proxy server with specified ports
     python3 "$PROXY_SCRIPT" \
-        --service-discovery-port "$PROXY_SERVICE_DISCOVERY_PORT" \
-        --app-port "$PROXY_APP_PORT" &
+        --port "$PROXY_PORT" \
+        --prefiller-port "$PREFILL_PORT" \
+        --decoder-port "$DECODE_PORT" > "$SCRIPT_DIR/proxy.log" 2>&1 &
     PIDS+=($!)
     
     # Wait a bit for proxy to start
@@ -161,14 +164,13 @@ start_proxy() {
 
 # Function to start serving components
 start_serving() {
-    echo "Warning: P2P NCCL disaggregated prefill XpYd support for vLLM v1 is experimental and subject to change."
+    echo "Starting disaggregated serving with NIXL..."
     echo ""
     echo "Architecture Configuration:"
     echo "  Model: $MODEL_PATH"
-    echo "  Prefill GPUs: $PREFILL_GPUS, Ports: $PREFILL_PORTS"
-    echo "  Decode GPUs: $DECODE_GPUS, Ports: $DECODE_PORTS"
-    echo "  Proxy Service Discovery Port: $PROXY_SERVICE_DISCOVERY_PORT"
-    echo "  Proxy App Port: $PROXY_APP_PORT"
+    echo "  Prefill GPUs: $PREFILL_GPUS, Port: $PREFILL_PORTS"
+    echo "  Decode GPUs: $DECODE_GPUS, Port: $DECODE_PORTS"
+    echo "  Proxy Port: $PROXY_PORT"
     echo "  Timeout: ${TIMEOUT_SECONDS}s"
     echo ""
     
@@ -177,12 +179,11 @@ start_serving() {
     ensure_python_library_installed pandas
     ensure_python_library_installed datasets
     ensure_python_library_installed vllm
-    ensure_python_library_installed quart
     
     echo "Launching disaggregated serving components..."
     echo "Please check the log files for detailed output:"
-    echo "  - prefill*.log: Prefill server logs"
-    echo "  - decode*.log: Decode server logs"
+    echo "  - prefill1.log: Prefill server logs"
+    echo "  - decode1.log: Decode server logs"
     echo "  - proxy.log: Proxy server log"
     
     # Parse GPU and port arrays
@@ -192,56 +193,48 @@ start_serving() {
     IFS=',' read -ra DECODE_PORT_ARRAY <<< "$DECODE_PORTS"
     
     # =============================================================================
-    # Launch Prefill Servers (X Producers)
+    # Launch Prefill Server
     # =============================================================================
     echo ""
-    echo "Starting ${#PREFILL_GPU_ARRAY[@]} prefill server(s)..."
+    echo "Starting prefill server..."
     for i in "${!PREFILL_GPU_ARRAY[@]}"; do
         local gpu_id=${PREFILL_GPU_ARRAY[$i]}
         local port=${PREFILL_PORT_ARRAY[$i]}
-        local kv_port=$((21001 + i))
         
-        echo "  Prefill server $((i+1)): GPU $gpu_id, Port $port, KV Port $kv_port"
-        CUDA_VISIBLE_DEVICES=$gpu_id VLLM_USE_V1=1 vllm serve $MODEL_PATH \
-        --host 0.0.0.0 \
-        --port $port \
-        --tensor-parallel-size 1 \
-        --seed 1024 \
-        --dtype float16 \
-        --max-model-len 10000 \
-        --max-num-batched-tokens 10000 \
-        --max-num-seqs 256 \
-        --trust-remote-code \
-        --gpu-memory-utilization 0.9 \
-        --kv-transfer-config \
-        "{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_producer\",\"kv_buffer_size\":\"1e1\",\"kv_port\":\"$kv_port\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"$PROXY_SERVICE_DISCOVERY_PORT\",\"http_port\":\"$port\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}" > "$SCRIPT_DIR/prefill$((i+1)).log" 2>&1 &
+        echo "  Prefill server: GPU $gpu_id, Port $port"
+        CUDA_VISIBLE_DEVICES=$gpu_id \
+        VLLM_NIXL_SIDE_CHANNEL_PORT=5577 \
+        VLLM_LOGGING_LEVEL=INFO \
+        vllm serve $MODEL_PATH \
+          --port $port \
+          --tensor-parallel-size $TP \
+          --enforce-eager \
+          --block-size 16 \
+          --enable-log-requests \
+          --kv-transfer-config '{"kv_connector":"NixlConnector","kv_role":"kv_both"}' > "$SCRIPT_DIR/prefill$((i+1)).log" 2>&1 &
         PIDS+=($!)
     done
     
     # =============================================================================
-    # Launch Decode Servers (Y Decoders)
+    # Launch Decode Server
     # =============================================================================
     echo ""
-    echo "Starting ${#DECODE_GPU_ARRAY[@]} decode server(s)..."
+    echo "Starting decode server..."
     for i in "${!DECODE_GPU_ARRAY[@]}"; do
         local gpu_id=${DECODE_GPU_ARRAY[$i]}
         local port=${DECODE_PORT_ARRAY[$i]}
-        local kv_port=$((22001 + i))
         
-        echo "  Decode server $((i+1)): GPU $gpu_id, Port $port, KV Port $kv_port"
-        VLLM_USE_V1=1 CUDA_VISIBLE_DEVICES=$gpu_id vllm serve $MODEL_PATH \
-        --host 0.0.0.0 \
-        --port $port \
-        --tensor-parallel-size 1 \
-        --seed 1024 \
-        --dtype float16 \
-        --max-model-len 10000 \
-        --max-num-batched-tokens 10000 \
-        --max-num-seqs 256 \
-        --trust-remote-code \
-        --gpu-memory-utilization 0.7 \
-        --kv-transfer-config \
-        "{\"kv_connector\":\"P2pNcclConnector\",\"kv_role\":\"kv_consumer\",\"kv_buffer_size\":\"8e9\",\"kv_port\":\"$kv_port\",\"kv_connector_extra_config\":{\"proxy_ip\":\"0.0.0.0\",\"proxy_port\":\"$PROXY_SERVICE_DISCOVERY_PORT\",\"http_port\":\"$port\",\"send_type\":\"PUT_ASYNC\",\"nccl_num_channels\":\"16\"}}" > "$SCRIPT_DIR/decode$((i+1)).log" 2>&1 &
+        echo "  Decode server: GPU $gpu_id, Port $port"
+        CUDA_VISIBLE_DEVICES=$gpu_id \
+        VLLM_NIXL_SIDE_CHANNEL_PORT=5567 \
+        VLLM_LOGGING_LEVEL=INFO \
+        vllm serve $MODEL_PATH \
+          --port $port \
+          --tensor-parallel-size $TP \
+          --enforce-eager \
+          --block-size 16 \
+          --enable-log-requests \
+          --kv-transfer-config '{"kv_connector":"NixlConnector","kv_role":"kv_both"}' > "$SCRIPT_DIR/decode$((i+1)).log" 2>&1 &
         PIDS+=($!)
     done
     
@@ -263,7 +256,7 @@ start_serving() {
 
 # Main execution
 main() {
-    echo "Starting integrated benchmark script..."
+    echo "Starting integrated benchmark script for NIXL..."
     
     # Create results directory
     mkdir -p "$SCRIPT_DIR/$RESULTS_DIR"
@@ -304,7 +297,7 @@ main() {
             --save-result \
             --save-detailed \
             --result-dir $SCRIPT_DIR/$RESULTS_DIR \
-            --port $PROXY_APP_PORT
+            --port $PROXY_PORT
             
         echo "Benchmark with request rate $REQUEST_RATE and $NUM_PROMPTS prompts completed."
         sleep 10

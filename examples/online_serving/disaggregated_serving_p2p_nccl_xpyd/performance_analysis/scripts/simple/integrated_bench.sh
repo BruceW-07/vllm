@@ -23,11 +23,33 @@ SERVER_PID=""
 cleanup() {
     echo "Stopping everything…"
     trap - INT TERM        # prevent re-entrancy
+    
     # Kill the server process
     if [[ -n $SERVER_PID ]]; then
-        kill -9 $SERVER_PID 2>/dev/null || true
-        wait $SERVER_PID 2>/dev/null || true
+        echo "Killing server process $SERVER_PID..."
+        if kill -0 "$SERVER_PID" 2>/dev/null; then
+            kill -TERM "$SERVER_PID" 2>/dev/null || true
+            
+            # Wait for process to terminate gracefully
+            echo "Waiting for server process to terminate..."
+            timeout 10 wait "$SERVER_PID" 2>/dev/null || true
+            
+            # Force kill if still running
+            if kill -0 "$SERVER_PID" 2>/dev/null; then
+                echo "Force killing server process $SERVER_PID..."
+                kill -KILL "$SERVER_PID" 2>/dev/null || true
+            fi
+        fi
     fi
+    
+    # Additional cleanup for any remaining vllm processes
+    echo "Cleaning up any remaining vllm processes..."
+    pkill -f "vllm serve" 2>/dev/null || true
+    
+    # Wait a bit for processes to fully terminate
+    sleep 2
+    
+    echo "Cleanup completed."
     exit 0
 }
 
