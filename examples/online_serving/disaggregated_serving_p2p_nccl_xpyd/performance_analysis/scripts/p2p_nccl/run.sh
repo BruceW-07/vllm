@@ -138,8 +138,18 @@ main() {
     # Wait a bit more for all services to be ready
     sleep 30
     
-    # Run benchmarks
-    run_benchmarks
+    # Run benchmarks with different datasets
+    echo "Running benchmarks with random dataset..."
+    BENCH_SCRIPT=random-512-64.sh run_benchmarks
+    
+    echo "Running benchmarks with ShareGPT dataset..."
+    BENCH_SCRIPT=sharegpt.sh run_benchmarks
+    
+    echo "Running benchmarks with HF AIMO dataset..."
+    BENCH_SCRIPT=hf-aimo.sh run_benchmarks
+    
+    echo "Running benchmarks with HF InstructCoder dataset..."
+    BENCH_SCRIPT=hf-instructcoder.sh run_benchmarks
     
     # Cleanup
     cleanup
