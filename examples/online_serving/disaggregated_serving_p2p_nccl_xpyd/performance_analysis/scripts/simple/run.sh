@@ -14,7 +14,14 @@ SERVER_PORT=${SERVER_PORT:-8027}
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REQUEST_RATES=${REQUEST_RATES:-"0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5"}
-BENCH_SCRIPT=${BENCH_SCRIPT:-random-512-64.sh}
+
+# List of benchmark scripts to run
+BENCH_SCRIPTS=(
+    "random-512-64.sh"
+    "sharegpt.sh"
+    "hf-aimo.sh"
+    "hf-instructcoder.sh"
+)
 
 # Global variables
 SERVE_PID=""
@@ -122,17 +129,10 @@ main() {
     sleep 30
     
     # Run benchmarks with different datasets
-    echo "Running benchmarks with random dataset..."
-    BENCH_SCRIPT=random-512-64.sh run_benchmarks
-    
-    echo "Running benchmarks with ShareGPT dataset..."
-    BENCH_SCRIPT=sharegpt.sh run_benchmarks
-    
-    echo "Running benchmarks with HF AIMO dataset..."
-    BENCH_SCRIPT=hf-aimo.sh run_benchmarks
-    
-    echo "Running benchmarks with HF InstructCoder dataset..."
-    BENCH_SCRIPT=hf-instructcoder.sh run_benchmarks
+    for BENCH_SCRIPT in "${BENCH_SCRIPTS[@]}"; do
+        echo "Running benchmarks with script: $BENCH_SCRIPT"
+        run_benchmarks
+    done
     
     # Cleanup
     cleanup
