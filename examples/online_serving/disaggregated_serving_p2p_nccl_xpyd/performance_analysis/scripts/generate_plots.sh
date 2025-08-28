@@ -48,24 +48,20 @@ if [ ! -d "${p2p_nccl_results_path}" ]; then
     echo "Warning: P2P NCCL results path ${p2p_nccl_results_path} does not exist."
 fi
 
-# 1. Run plot_latency_breakdown.py for simple configuration
+# 1. Run plot_latency_breakdown.py for p2p_nccl configuration
 echo ""
-echo "1. Generating latency breakdown plot for simple configuration..."
-run_plot_script "plot_latency_breakdown.py" "${simple_results_path}" --num-gpus 1
+echo "1. Generating latency breakdown plot for p2p_nccl configuration..."
+run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type latency  --output "{$SCRIPT_DIR}/../plots/p2p_nccl_latency_breakdown.png"
+run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type ttft  --output "{$SCRIPT_DIR}/../plots/p2p_nccl_ttft_breakdown.png"
 
-# 2. Run plot_latency_breakdown.py for p2p_nccl configuration
+# 2. Run plot_latency_rps_per_gpu_comparison.py
 echo ""
-echo "2. Generating latency breakdown plot for p2p_nccl configuration..."
-run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2
-
-# 3. Run plot_latency_rps_per_gpu_comparison.py
-echo ""
-echo "3. Generating latency RPS per GPU comparison plots..."
+echo "2. Generating latency RPS per GPU comparison plots..."
 run_plot_script "plot_latency_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}"
 
-# 4. Run plot_slo_attainment_rps_per_gpu_comparison.py
+# 3. Run plot_slo_attainment_rps_per_gpu_comparison.py
 echo ""
-echo "4. Generating SLO attainment RPS per GPU comparison plots..."
+echo "3. Generating SLO attainment RPS per GPU comparison plots..."
 run_plot_script "plot_slo_attainment_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}"
 
 echo ""
