@@ -23,7 +23,7 @@ DECODE_PORT=${DECODE_PORT:-20005}
 
 # Benchmark configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROXY_SCRIPT="$SCRIPT_DIR/../../../../../tests/v1/kv_connector/nixl_integration/toy_proxy_server.py"
+PROXY_SCRIPT="$SCRIPT_DIR/../../../../../../tests/v1/kv_connector/nixl_integration/toy_proxy_server.py"
 RESULTS_DIR="results"
 REQUEST_RATES=(1 2 3 4 5 6 7 8 9 10 11)
 
