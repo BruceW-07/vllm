@@ -55,18 +55,12 @@
 
 ### 3.1 延迟分解分析
 
-#### 3.1.1 PD合并服务配置
-![延迟分解 - PD合并](plots/latency_breakdown.png)
-
-#### 3.1.2 PD分离服务配置 (P2P NCCL)
+#### 3.1.1 PD分离服务配置 (P2P NCCL)
 ![延迟分解 - PD分离](plots/latency_breakdown.png)
 
 ### 3.2 TTFT 分解分析
 
-#### 3.2.1 PD合并服务配置
-![TTFT 分解 - PD合并](plots/ttft_breakdown.png)
-
-#### 3.2.2 PD分离服务配置 (P2P NCCL)
+#### 3.2.1 PD分离服务配置 (P2P NCCL)
 ![TTFT 分解 - PD分离](plots/ttft_breakdown.png)
 
 ### 3.3 延迟比较 (每 GPU 的请求速率)
