@@ -179,13 +179,17 @@ def plot_slo_attainment_comparison(simple_data, p2p_nccl_data, ttft_limit, tpot_
     p2p_nccl_adjusted_rates = []
     
     for rate in sorted_rates:
-        # Check if rate exists in both datasets and has the required data
-        if (rate in simple_data and rate in p2p_nccl_data and
+        # For simple configuration, the rate is the per-GPU rate
+        # For p2p_nccl configuration, the rate in the data is the total rate (2 GPUs),
+        # so we need to check if rate*2 exists in p2p_nccl_data to get the same per-GPU rate
+        if (rate in simple_data and rate * 2 in p2p_nccl_data and
             'ttfts' in simple_data[rate] and 'tpots' in simple_data[rate] and
-            'ttfts' in p2p_nccl_data[rate] and 'tpots' in p2p_nccl_data[rate]):
+            'ttfts' in p2p_nccl_data[rate * 2] and 'tpots' in p2p_nccl_data[rate * 2]):
+            # Both configurations have data for the same per-GPU rate
+            # For the plot, we show the per-GPU rate on x-axis
             valid_rates.append(rate)
-            # For p2p_nccl, adjust rate by dividing by 2 (1p1d configuration)
-            p2p_nccl_adjusted_rates.append(rate / 2)
+            # For p2p_nccl, we track the per-GPU rate for plotting (same as simple)
+            p2p_nccl_adjusted_rates.append(rate)
             
             # Calculate SLO attainment for simple configuration
             simple_ttfts = simple_data[rate]['ttfts']
@@ -197,8 +201,9 @@ def plot_slo_attainment_comparison(simple_data, p2p_nccl_data, ttft_limit, tpot_
             simple_tpot_slo.append(simple_tpot_only)
             
             # Calculate SLO attainment for p2p_nccl configuration
-            p2p_nccl_ttfts = p2p_nccl_data[rate]['ttfts']
-            p2p_nccl_tpots = p2p_nccl_data[rate]['tpots']
+            # For p2p_nccl, we access data using the total rate (rate * 2)
+            p2p_nccl_ttfts = p2p_nccl_data[rate * 2]['ttfts']
+            p2p_nccl_tpots = p2p_nccl_data[rate * 2]['tpots']
             p2p_nccl_both, p2p_nccl_ttft_only, p2p_nccl_tpot_only = calculate_slo_attainment(
                 p2p_nccl_ttfts, p2p_nccl_tpots, ttft_limit, tpot_limit)
             p2p_nccl_both_slo.append(p2p_nccl_both)

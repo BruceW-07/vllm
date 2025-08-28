@@ -158,18 +158,27 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
     # Adjusted rates for p2p_nccl (divided by 2 for 1p1d configuration)
     p2p_nccl_adjusted_rates = []
     
+    # Common adjusted rates for x-axis (should be the same for both configurations)
+    common_adjusted_rates = []
+    
     for rate in sorted_rates:
-        # Check if rate exists in both datasets and has the required percentile data
-        if (rate in simple_data and rate in p2p_nccl_data and
-            percentile in simple_data[rate] and percentile in p2p_nccl_data[rate]):
+        # For simple configuration, the rate is the per-GPU rate
+        # For p2p_nccl configuration, the rate in the data is the total rate (2 GPUs),
+        # so we need to check if rate*2 exists in p2p_nccl_data to get the same per-GPU rate
+        if (rate in simple_data and rate * 2 in p2p_nccl_data and
+            percentile in simple_data[rate] and percentile in p2p_nccl_data[rate * 2]):
+            # Both configurations have data for the same per-GPU rate
+            # For the plot, we show the per-GPU rate on x-axis
+            common_adjusted_rates.append(rate)
             valid_rates.append(rate)
-            # For p2p_nccl, adjust rate by dividing by 2 (1p1d configuration)
-            p2p_nccl_adjusted_rates.append(rate / 2)
+            # For p2p_nccl, we track the per-GPU rate for plotting
+            p2p_nccl_adjusted_rates.append(rate)
             # Extract data for the specific percentile
             simple_ttft.append(simple_data[rate][percentile][0])
             simple_tpot.append(simple_data[rate][percentile][1])
-            p2p_nccl_ttft.append(p2p_nccl_data[rate][percentile][0])
-            p2p_nccl_tpot.append(p2p_nccl_data[rate][percentile][1])
+            # For p2p_nccl, we access data using the total rate (rate * 2)
+            p2p_nccl_ttft.append(p2p_nccl_data[rate * 2][percentile][0])
+            p2p_nccl_tpot.append(p2p_nccl_data[rate * 2][percentile][1])
     
     if not valid_rates:
         print(f"No common request rates found between the two configurations for {percentile}.")
@@ -190,10 +199,10 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
     marker_style = 'o'  # Circular markers
     
     # Plot TTFT comparison (top subplot)
-    ax1.plot(valid_rates, simple_ttft_s,
+    ax1.plot(common_adjusted_rates, simple_ttft_s,
              color=simple_color, marker=marker_style, linewidth=2, markersize=6,
              label='Simple')
-    ax1.plot(p2p_nccl_adjusted_rates, p2p_nccl_ttft_s,
+    ax1.plot(common_adjusted_rates, p2p_nccl_ttft_s,
              color=p2p_nccl_color, marker=marker_style, linewidth=2, markersize=6,
              label='P2P NCCL (1p1d)')
     ax1.set_xlabel('Request Rate / GPU (reqs/s/GPU)')
@@ -201,12 +210,13 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
     ax1.set_title(f'{percentile.upper()} TTFT Comparison')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
+    ax1.set_xticks(common_adjusted_rates)
     
     # Plot TPOT comparison (bottom subplot)
-    ax2.plot(valid_rates, simple_tpot_s,
+    ax2.plot(common_adjusted_rates, simple_tpot_s,
              color=simple_color, marker=marker_style, linewidth=2, markersize=6,
              label='Simple')
-    ax2.plot(p2p_nccl_adjusted_rates, p2p_nccl_tpot_s,
+    ax2.plot(common_adjusted_rates, p2p_nccl_tpot_s,
              color=p2p_nccl_color, marker=marker_style, linewidth=2, markersize=6,
              label='P2P NCCL (1p1d)')
     ax2.set_xlabel('Request Rate / GPU (reqs/s/GPU)')
@@ -214,6 +224,7 @@ def plot_performance_comparison_percentile(simple_data, p2p_nccl_data, percentil
     ax2.set_title(f'{percentile.upper()} TPOT Comparison')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
+    ax2.set_xticks(common_adjusted_rates)
     
     plt.tight_layout()
     

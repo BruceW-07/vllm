@@ -368,7 +368,7 @@ def main():
         print("Generating both latency and TTFT breakdown plots...")
         # Generate both plots with appropriate filenames
         latency_output = args.output if args.output != 'latency_breakdown.png' else 'latency_breakdown.png'
-        ttft_output = args.output.replace('latency_breakdown', 'ttft_breakdown') if 'latency_breakdown' in args.output else 'ttft_breakdown.png'
+        ttft_output = args.output.replace('latency_breakdown', 'ttft_breakdown') if args.output and 'latency_breakdown' in args.output else 'ttft_breakdown.png'
         plot_latency_breakdown(benchmark_data, latency_output)
         plot_ttft_breakdown(benchmark_data, ttft_output)
 
