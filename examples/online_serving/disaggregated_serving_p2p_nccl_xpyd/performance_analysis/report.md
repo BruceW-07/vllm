@@ -25,6 +25,8 @@
 - seed: 1024
 
 ### 2.4 PD分离服务配置 (P2P NCCL)
+
+#### 2.4.1 架构配置
 - Architecture: 1 Prefill + 3 Decode (1P3D)
 - Prefill GPUs: 0
 - Decode GPUs: 1
@@ -32,12 +34,32 @@
 - Decode ports: 20005
 - Proxy service discovery port: 30001
 - Proxy app port: 10001
+
+#### 2.4.2 Prefill服务器配置
 - prefix-caching: disabled
-- KV transfer config:
-  - kv_connector: P2pNcclConnector
-  - kv_role: kv_producer/kv_consumer
-  - kv_buffer_size: 1e1 (producer), 8e9 (consumer)
-  - nccl_num_channels: 16
+- tensor-parallel-size: 1
+- gpu-memory-utilization: 0.9
+- max-model-len: 10000
+- max-num-batched-tokens: 10000
+- max-num-seqs: 256
+- dtype: float16
+- seed: 1024
+
+#### 2.4.3 Decode服务器配置
+- prefix-caching: disabled
+- tensor-parallel-size: 1
+- gpu-memory-utilization: 0.7
+- max-model-len: 10000
+- max-num-batched-tokens: 10000
+- max-num-seqs: 256
+- dtype: float16
+- seed: 1024
+
+#### 2.4.4 KV传输配置
+- kv_connector: P2pNcclConnector
+- kv_role: kv_producer/kv_consumer
+- kv_buffer_size: 1e1 (producer), 8e9 (consumer)
+- nccl_num_channels: 16
 
 ## 3. 性能结果
 
