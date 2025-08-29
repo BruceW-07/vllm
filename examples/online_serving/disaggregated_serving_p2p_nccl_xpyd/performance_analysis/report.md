@@ -135,6 +135,7 @@
 - dataset-name: gsm8k
 - ignore-eos: enabled
 - metric-percentiles: 90, 95, 99
+- output-len: 256
 - seed: 1024
 - Request rates:
   - PD-Combined serving: 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5
@@ -167,6 +168,7 @@
 - dataset-name: human_eval
 - ignore-eos: enabled
 - metric-percentiles: 90, 95, 99
+- output-len: 256
 - seed: 1024
 - Request rates:
   - PD-Combined serving: 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5
