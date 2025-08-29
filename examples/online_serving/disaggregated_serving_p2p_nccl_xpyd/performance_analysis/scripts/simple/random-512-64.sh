@@ -20,7 +20,7 @@ run_benchmarks() {
     echo "Running benchmarks..."
     
     # Create results directory with dataset and input/output length information
-    local result_subdir="${DATASET_NAME}_${RANDOM_INPUT_LEN}_${RANDOM_OUTPUT_LEN}"
+    local result_subdir="${DATASET_NAME}-${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}"
     mkdir -p "$RESULTS_DIR/$result_subdir"
     
     # Convert REQUEST_RATES string to array
