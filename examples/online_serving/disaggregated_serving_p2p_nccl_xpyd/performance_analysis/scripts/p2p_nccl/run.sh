@@ -171,7 +171,7 @@ run_benchmarks() {
     
     # Export environment variables for bench script
     export REQUEST_RATES
-    export PROXY_APP_PORT
+    export SERVER_PORT=$PROXY_APP_PORT
     export MODEL_PATH
     
     # Start bench script

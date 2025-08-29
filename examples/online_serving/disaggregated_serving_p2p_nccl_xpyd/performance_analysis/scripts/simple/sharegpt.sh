@@ -12,7 +12,6 @@ DATASET_NAME=${DATASET_NAME:-sharegpt}
 # Default configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
-MODEL_PATH="/workspace/models/Llama-3.1-8B-Instruct"
 
 # Function to run benchmarks
 run_benchmarks() {

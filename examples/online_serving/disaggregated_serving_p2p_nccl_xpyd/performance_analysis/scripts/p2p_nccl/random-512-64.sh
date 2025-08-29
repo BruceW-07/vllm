@@ -10,13 +10,10 @@ set -xe  # Exit on any error
 DATASET_NAME=${DATASET_NAME:-random}
 RANDOM_INPUT_LEN=${RANDOM_INPUT_LEN:-512}
 RANDOM_OUTPUT_LEN=${RANDOM_OUTPUT_LEN:-64}
-REQUEST_RATES=${REQUEST_RATES:-"1 2 3 4 5 6 7 8 9 10 11"}
-SERVER_PORT=${SERVER_PORT:-10001}
 
 # Default configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
-MODEL_PATH="/workspace/models/Llama-3.1-8B-Instruct"
 
 # Function to run benchmarks
 run_benchmarks() {
