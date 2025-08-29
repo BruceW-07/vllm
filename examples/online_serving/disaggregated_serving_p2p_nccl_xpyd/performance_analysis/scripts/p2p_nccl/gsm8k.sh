@@ -1,25 +1,24 @@
 #!/bin/bash
 
 # =============================================================================
-# Benchmark Script for vLLM Disaggregated Serving with P2P NCCL - HF AIMO Dataset
+# Benchmark Script for vLLM Disaggregated Serving with P2P NCCL - ShareGPT Dataset
 # =============================================================================
 
 set -xe  # Exit on any error
 
-# Configuration - can be overridden via environment variables
-DATASET_NAME=${DATASET_NAME:-hf}
-DATASET_PATH=${DATASET_PATH:-AI-MO/aimo-validation-aime}
-
 # Default configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
+
+DATASET_NAME=${DATASET_NAME:-custom}
+DATASET_PATH=${DATASET_PATH:-"$SCRIPT_DIR/../../datasets/gsm8k_test.jsonl"}
 
 # Function to run benchmarks
 run_benchmarks() {
     echo "Running benchmarks..."
     
     # Create results directory with dataset information
-    local result_subdir="${DATASET_NAME}_$(echo "$DATASET_PATH" | sed 's/\//_/g')"
+    local result_subdir="${DATASET_NAME}"
     mkdir -p "$RESULTS_DIR/$result_subdir"
     
     # Convert REQUEST_RATES string to array
@@ -59,9 +58,8 @@ run_benchmarks() {
 
 # Main execution
 main() {
-    echo "Starting benchmark script for P2P NCCL configuration with HF AIMO dataset..."
+    echo "Starting benchmark script for P2P NCCL configuration with ShareGPT dataset..."
     echo "Dataset: $DATASET_NAME"
-    echo "Dataset path: $DATASET_PATH"
     
     # Run benchmarks
     run_benchmarks

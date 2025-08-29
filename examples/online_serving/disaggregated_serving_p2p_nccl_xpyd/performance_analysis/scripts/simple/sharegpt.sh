@@ -1,17 +1,18 @@
 #!/bin/bash
 
 # =============================================================================
-# Benchmark Script for vLLM Simple Serving - ShareGPT Dataset
+# Benchmark Script for vLLM Disaggregated Serving with P2P NCCL - ShareGPT Dataset
 # =============================================================================
 
 set -xe  # Exit on any error
 
-# Configuration - can be overridden via environment variables
-DATASET_NAME=${DATASET_NAME:-sharegpt}
-
 # Default configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
+
+# Configuration - can be overridden via environment variables
+DATASET_NAME=${DATASET_NAME:-sharegpt}
+DATASET_PATH=${DATASET_PATH:-"$SCRIPT_DIR/../../datasets/ShareGPT_V3_unfiltered_cleaned_split.json"}
 
 # Function to run benchmarks
 run_benchmarks() {
@@ -37,6 +38,7 @@ run_benchmarks() {
             --model "$MODEL_PATH" \
             --endpoint /v1/completions \
             --dataset-name "$DATASET_NAME" \
+            --dataset-path "$DATASET_PATH" \
             --ignore-eos \
             --metric-percentiles "90,95,99" \
             --seed 1024 \
@@ -57,7 +59,7 @@ run_benchmarks() {
 
 # Main execution
 main() {
-    echo "Starting benchmark script for simple mode with ShareGPT dataset..."
+    echo "Starting benchmark script for P2P NCCL configuration with ShareGPT dataset..."
     echo "Dataset: $DATASET_NAME"
     
     # Run benchmarks
