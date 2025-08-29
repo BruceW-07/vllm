@@ -83,6 +83,7 @@ start_serving() {
     
     # Start vLLM service
     CUDA_VISIBLE_DEVICES=$GPU_ID vllm serve "$MODEL" \
+        --no-enable-prefix-caching \
         --tensor-parallel-size 1 \
         --seed 1024 \
         --dtype float16 \

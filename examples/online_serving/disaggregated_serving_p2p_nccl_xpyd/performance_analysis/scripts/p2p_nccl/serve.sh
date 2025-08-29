@@ -174,6 +174,7 @@ start_serving() {
         
         echo "  Prefill server $((i+1)): GPU $gpu_id, Port $port, KV Port $kv_port"
         CUDA_VISIBLE_DEVICES=$gpu_id VLLM_USE_V1=1 vllm serve $MODEL_PATH \
+        --no-enable-prefix-caching \
         --host 0.0.0.0 \
         --port $port \
         --tensor-parallel-size 1 \
@@ -201,6 +202,7 @@ start_serving() {
         
         echo "  Decode server $((i+1)): GPU $gpu_id, Port $port, KV Port $kv_port"
         VLLM_USE_V1=1 CUDA_VISIBLE_DEVICES=$gpu_id vllm serve $MODEL_PATH \
+        --no-enable-prefix-caching \
         --host 0.0.0.0 \
         --port $port \
         --tensor-parallel-size 1 \

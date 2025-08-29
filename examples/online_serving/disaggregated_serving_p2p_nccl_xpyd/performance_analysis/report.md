@@ -15,6 +15,7 @@
 - 模型: Llama-3.1-8B-Instruct (位于 `/workspace/models/Llama-3.1-8B-Instruct`)
 
 ### 2.3 PD合并服务配置
+- prefix-caching: disabled
 - tensor-parallel-size: 1
 - gpu-memory-utilization: 0.9
 - max-model-len: 10000
@@ -31,6 +32,7 @@
 - Decode ports: 20005
 - Proxy service discovery port: 30001
 - Proxy app port: 10001
+- prefix-caching: disabled
 - KV transfer config:
   - kv_connector: P2pNcclConnector
   - kv_role: kv_producer/kv_consumer
