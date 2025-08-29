@@ -35,34 +35,56 @@ cd "${SCRIPT_DIR}" || exit 1
 
 echo "Generating all plots..."
 
-# Define paths relative to script location
-simple_results_path="./simple/results"
-p2p_nccl_results_path="./p2p_nccl/results"
+# Define datasets to process
+datasets=("random-512-64.sh" "sharegpt.sh" "gsm8k.sh" "human_eval.sh")
 
-# Check if result paths exist
-if [ ! -d "${simple_results_path}" ]; then
-    echo "Warning: Simple results path ${simple_results_path} does not exist."
-fi
+# Process each dataset
+for dataset in "${datasets[@]}"; do
+    echo ""
+    echo "Processing dataset: ${dataset}"
+    echo "========================"
+    
+    # Remove .sh extension for directory names
+    dataset_name="${dataset%.sh}"
+    
+    # Define paths relative to script location for this dataset
+    simple_results_path="./simple/results/${dataset_name}"
+    p2p_nccl_results_path="./p2p_nccl/results/${dataset_name}"
+    
+    # Define output directories for this dataset
+    output_dir="../plots/${dataset_name}"
+    
+    # Create output directory if it doesn't exist
+    mkdir -p "${output_dir}"
+    
+    # Check if result paths exist
+    if [ ! -d "${simple_results_path}" ]; then
+        echo "Warning: Simple results path ${simple_results_path} does not exist."
+    fi
+    
+    if [ ! -d "${p2p_nccl_results_path}" ]; then
+        echo "Warning: P2P NCCL results path ${p2p_nccl_results_path} does not exist."
+    fi
+    
+    # 1. Run plot_latency_breakdown.py for p2p_nccl configuration
+    echo ""
+    echo "1. Generating latency breakdown plot for p2p_nccl configuration..."
+    run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type latency --output "${output_dir}/p2p_nccl_latency_breakdown.png"
+    run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type ttft --output "${output_dir}/p2p_nccl_ttft_breakdown.png"
+    
+    # 2. Run plot_latency_rps_per_gpu_comparison.py
+    echo ""
+    echo "2. Generating latency RPS per GPU comparison plots..."
+    run_plot_script "plot_latency_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}" --output "${output_dir}/latency_rps_per_gpu_comparison.png"
+    
+    # 3. Run plot_slo_attainment_rps_per_gpu_comparison.py
+    echo ""
+    echo "3. Generating SLO attainment RPS per GPU comparison plots..."
+    run_plot_script "plot_slo_attainment_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}" --ttft-limit 100 --tpot-limit 17 --output "${output_dir}/slo_attainment_rps_per_gpu_comparison.png"
+    
+    echo ""
+    echo "Finished processing dataset: ${dataset}"
+done
 
-if [ ! -d "${p2p_nccl_results_path}" ]; then
-    echo "Warning: P2P NCCL results path ${p2p_nccl_results_path} does not exist."
-fi
-
-# 1. Run plot_latency_breakdown.py for p2p_nccl configuration
 echo ""
-echo "1. Generating latency breakdown plot for p2p_nccl configuration..."
-run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type latency  --output "$SCRIPT_DIR/../plots/p2p_nccl_latency_breakdown.png"
-run_plot_script "plot_latency_breakdown.py" "${p2p_nccl_results_path}" --num-gpus 2 --plot-type ttft  --output "$SCRIPT_DIR/../plots/p2p_nccl_ttft_breakdown.png"
-
-# 2. Run plot_latency_rps_per_gpu_comparison.py
-echo ""
-echo "2. Generating latency RPS per GPU comparison plots..."
-run_plot_script "plot_latency_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}"
-
-# 3. Run plot_slo_attainment_rps_per_gpu_comparison.py
-echo ""
-echo "3. Generating SLO attainment RPS per GPU comparison plots..."
-run_plot_script "plot_slo_attainment_rps_per_gpu_comparison.py" "${simple_results_path}" "${p2p_nccl_results_path}" --ttft-limit 100 --tpot-limit 17
-
-echo ""
-echo "All plots have been generated successfully!"
+echo "All plots have been generated successfully for all datasets!"
