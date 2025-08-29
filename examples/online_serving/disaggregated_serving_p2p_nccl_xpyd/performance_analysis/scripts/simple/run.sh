@@ -19,8 +19,8 @@ REQUEST_RATES=${REQUEST_RATES:-"0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5"}
 BENCH_SCRIPTS=(
     "random-512-64.sh"
     "sharegpt.sh"
-    "hf-aimo.sh"
-    "hf-instructcoder.sh"
+    "gsm8k.sh"
+    "human_eval.sh"
 )
 
 # Global variables

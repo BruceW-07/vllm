@@ -28,8 +28,8 @@ REQUEST_RATES=${REQUEST_RATES:-"1 2 3 4 5 6 7 8 9 10 11"}
 BENCH_SCRIPTS=(
     "random-512-64.sh"
     "sharegpt.sh"
-    "hf-aimo.sh"
-    "hf-instructcoder.sh"
+    "gsm8k.sh"
+    "human_eval.sh"
 )
 
 # Default model path - update this to your actual model path
