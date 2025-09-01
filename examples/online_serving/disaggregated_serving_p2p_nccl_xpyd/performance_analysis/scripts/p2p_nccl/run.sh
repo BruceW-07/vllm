@@ -94,6 +94,40 @@ cleanup() {
 # Trap signals to ensure cleanup
 trap cleanup INT TERM EXIT
 
+# Function to check if Python library is installed
+ensure_python_library_installed() {
+    echo "Checking if $1 is installed..."
+    if ! python3 -c "import $1" > /dev/null 2>&1; then
+        echo "$1 is not installed. Please install it via pip install $1."
+        exit 1
+    else
+        echo "$1 is installed."
+    fi
+}
+
+# Function to check if command is available
+ensure_command_available() {
+    echo "Checking if $1 is available..."
+    if ! command -v "$1" > /dev/null 2>&1; then
+        echo "$1 is not installed. Please install it."
+        exit 1
+    else
+        echo "$1 is available."
+    fi
+}
+
+# Function to check dependencies
+check_dependencies() {
+    echo "Checking dependencies..."
+    ensure_python_library_installed pandas
+    ensure_python_library_installed datasets
+    ensure_python_library_installed vllm
+    ensure_python_library_installed quart
+    ensure_command_available bc
+    ensure_command_available curl
+    echo "All dependencies are satisfied."
+}
+
 # Function to wait for server to be ready
 wait_for_server() {
     local port=$1
@@ -183,6 +217,9 @@ run_benchmarks() {
 # Main execution
 main() {
     echo "Starting main control script for P2P NCCL configuration..."
+    
+    # Check dependencies
+    check_dependencies
     
     # Create results directory
     mkdir -p "$SCRIPT_DIR/results"
