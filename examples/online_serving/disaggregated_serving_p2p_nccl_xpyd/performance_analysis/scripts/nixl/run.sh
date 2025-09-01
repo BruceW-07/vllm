@@ -23,7 +23,14 @@ PROXY_PORT=${PROXY_PORT:-10001}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROXY_SCRIPT="$SCRIPT_DIR/../../../../../../tests/v1/kv_connector/nixl_integration/toy_proxy_server.py"
 REQUEST_RATES=${REQUEST_RATES:-"1 2 3 4 5 6 7 8 9 10 11"}
-BENCH_SCRIPT=${BENCH_SCRIPT:-random-512-64.sh}
+
+# List of benchmark scripts to run
+BENCH_SCRIPTS=(
+    "random-512-64.sh"
+    "sharegpt.sh"
+    "gsm8k.sh"
+    "human_eval.sh"
+)
 
 # Default model path - update this to your actual model path
 MODEL_PATH="/workspace/models/Llama-3.1-8B-Instruct"
@@ -164,7 +171,7 @@ run_benchmarks() {
     
     # Export environment variables for bench script
     export REQUEST_RATES
-    export PROXY_PORT
+    export SERVER_PORT=$PROXY_PORT
     export MODEL_PATH
     
     # Start bench script
@@ -186,8 +193,11 @@ main() {
     # Wait a bit more for all services to be ready
     sleep 10
     
-    # Run benchmarks
-    run_benchmarks
+    # Run benchmarks with different datasets
+    for BENCH_SCRIPT in "${BENCH_SCRIPTS[@]}"; do
+        echo "Running benchmarks with script: $BENCH_SCRIPT"
+        run_benchmarks
+    done
     
     # Cleanup
     cleanup

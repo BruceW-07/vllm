@@ -7,7 +7,7 @@
 set -xe  # Exit on any error
 
 # Configuration - can be overridden via environment variables
-MODEL=${MODEL:-/workspace/models/Llama-3.1-8B-Instruct}
+MODEL_PATH=${MODEL_PATH:-/workspace/models/Llama-3.1-8B-Instruct}
 GPU_ID=${GPU_ID:-0}
 SERVER_PORT=${SERVER_PORT:-8027}
 
@@ -110,7 +110,7 @@ start_serving() {
     echo "Starting serving components..."
     
     # Export environment variables for serve script
-    export MODEL
+    export MODEL_PATH
     export GPU_ID
     export SERVER_PORT
     
@@ -135,7 +135,7 @@ run_benchmarks() {
     # Export environment variables for bench script
     export REQUEST_RATES
     export SERVER_PORT
-    export MODEL_PATH="$MODEL"
+    export MODEL_PATH
     
     # Start bench script
     "$SCRIPT_DIR/$BENCH_SCRIPT"

@@ -76,13 +76,13 @@ wait_for_server() {
 start_serving() {
     echo "Starting vLLM server..."
     echo "Configuration:"
-    echo "  Model: $MODEL"
+    echo "  Model: $MODEL_PATH"
     echo "  GPU ID: $GPU_ID"
     echo "  Port: $SERVER_PORT"
     echo ""
     
     # Start vLLM service
-    CUDA_VISIBLE_DEVICES=$GPU_ID vllm serve "$MODEL" \
+    CUDA_VISIBLE_DEVICES=$GPU_ID vllm serve "$MODEL_PATH" \
         --no-enable-prefix-caching \
         --tensor-parallel-size 1 \
         --seed 1024 \

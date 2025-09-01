@@ -1,26 +1,25 @@
 #!/bin/bash
 
 # =============================================================================
-# Benchmark Script for vLLM Disaggregated Serving with NIXL
+# Benchmark Script for vLLM Disaggregated Serving with NIXL - GSM8K Dataset
 # =============================================================================
 
 set -xe  # Exit on any error
-
-# Configuration - can be overridden via environment variables
-DATASET_NAME=${DATASET_NAME:-random}
-RANDOM_INPUT_LEN=${RANDOM_INPUT_LEN:-512}
-RANDOM_OUTPUT_LEN=${RANDOM_OUTPUT_LEN:-64}
 
 # Default configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
 
+# Configuration - can be overridden via environment variables
+DATASET_NAME=${DATASET_NAME:-custom}
+DATASET_PATH=${DATASET_PATH:-"$SCRIPT_DIR/../../datasets/gsm8k_test.jsonl"}
+
 # Function to run benchmarks
 run_benchmarks() {
     echo "Running benchmarks..."
     
-    # Create results directory with dataset and input/output length information
-    local result_subdir="${DATASET_NAME}-${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}"
+    # Create results directory with dataset information
+    local result_subdir="${DATASET_NAME}"
     mkdir -p "$RESULTS_DIR/$result_subdir"
     
     # Convert REQUEST_RATES string to array
@@ -39,8 +38,7 @@ run_benchmarks() {
             --model "$MODEL_PATH" \
             --endpoint /v1/completions \
             --dataset-name "$DATASET_NAME" \
-            --random-input-len "$RANDOM_INPUT_LEN" \
-            --random-output-len "$RANDOM_OUTPUT_LEN" \
+            --dataset-path "$DATASET_PATH" \
             --ignore-eos \
             --metric-percentiles "90,95,99" \
             --seed 1024 \
@@ -61,10 +59,8 @@ run_benchmarks() {
 
 # Main execution
 main() {
-    echo "Starting benchmark script for NIXL configuration..."
+    echo "Starting benchmark script for NIXL configuration with GSM8K dataset..."
     echo "Dataset: $DATASET_NAME"
-    echo "Input length: $RANDOM_INPUT_LEN"
-    echo "Output length: $RANDOM_OUTPUT_LEN"
     
     # Run benchmarks
     run_benchmarks
