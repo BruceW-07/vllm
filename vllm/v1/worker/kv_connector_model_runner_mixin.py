@@ -57,7 +57,8 @@ class KVConnectorModelRunnerMixin:
                 if active_req_ids:
                     for req_id in active_req_ids:
                         if req_id in self.requests:
-                            self.requests[req_id].kv_load_time = kv_load_time
+                            # Accumulate load time instead of overwriting
+                            self.requests[req_id].kv_load_time += kv_load_time
 
     @staticmethod
     def maybe_setup_kv_connector(scheduler_output: "SchedulerOutput"):
@@ -120,7 +121,8 @@ class KVConnectorModelRunnerMixin:
                 if active_req_ids:
                     for req_id in active_req_ids:
                         if req_id in self.requests:
-                            self.requests[req_id].kv_save_time = kv_save_time
+                            # Accumulate save time instead of overwriting
+                            self.requests[req_id].kv_save_time += kv_save_time
             
             return kv_save_time
         return 0.0
