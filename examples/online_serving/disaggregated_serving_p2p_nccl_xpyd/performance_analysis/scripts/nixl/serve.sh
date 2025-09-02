@@ -47,10 +47,23 @@ cleanup() {
         done
     fi
     
-    # Additional cleanup for any remaining vllm processes
-    echo "Cleaning up any remaining vllm processes..."
-    pkill -f "vllm serve" 2>/dev/null || true
-    pkill -f "toy_proxy_server.py" 2>/dev/null || true
+    # Check if any processes are still running after PID-based cleanup
+    echo "Verifying all processes have been terminated..."
+    
+    local remaining_processes=0
+    for pid in "${PIDS[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "Warning: Process $pid is still running after cleanup"
+            remaining_processes=$((remaining_processes + 1))
+        fi
+    done
+    
+    if [[ $remaining_processes -gt 0 ]]; then
+        echo "Warning: $remaining_processes processes are still running"
+        echo "You may need to manually terminate them if needed"
+    else
+        echo "All processes terminated successfully"
+    fi
     
     # Wait a bit for processes to fully terminate
     sleep 2

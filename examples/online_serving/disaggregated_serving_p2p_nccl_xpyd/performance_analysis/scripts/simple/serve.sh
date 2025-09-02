@@ -35,9 +35,15 @@ cleanup() {
         fi
     fi
     
-    # Additional cleanup for any remaining vllm processes
-    echo "Cleaning up any remaining vllm processes..."
-    pkill -f "vllm serve" 2>/dev/null || true
+    # Check if server process is still running after cleanup
+    echo "Verifying server process has been terminated..."
+    
+    if [[ -n $SERVER_PID ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
+        echo "Warning: Server process $SERVER_PID is still running after cleanup"
+        echo "You may need to manually terminate it if needed"
+    else
+        echo "Server process terminated successfully"
+    fi
     
     # Wait a bit for processes to fully terminate
     sleep 2
