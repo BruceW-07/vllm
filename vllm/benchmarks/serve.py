@@ -46,12 +46,13 @@ from vllm.transformers_utils.tokenizer import get_tokenizer
 MILLISECONDS_TO_SECONDS_CONVERSION = 1000
 
 
-def parse_kv_transfer_detailed_times_from_log(log_file_path: str = "decode1.log") -> tuple[list[float], list[float]]:
+def parse_kv_transfer_detailed_times_from_log(decode_log_path: str = "decode1.log", prefill_log_path: str = "prefill1.log") -> tuple[list[float], list[float]]:
     """
-    Parse detailed KV transfer times from log file.
+    Parse detailed KV transfer times from log files.
     
     Args:
-        log_file_path: Path to the log file
+        decode_log_path: Path to the decode log file (for load times)
+        prefill_log_path: Path to the prefill log file (for save times)
         
     Returns:
         tuple[list[float], list[float]]: (load_times, save_times) 
@@ -60,36 +61,52 @@ def parse_kv_transfer_detailed_times_from_log(log_file_path: str = "decode1.log"
     load_times = []
     save_times = []
     
-    if not os.path.exists(log_file_path):
-        print(f"Warning: Log file {log_file_path} not found. KV transfer times will be empty.")
-        return load_times, save_times
-    
     # Pattern to match the detailed KV transfer time breakdown log entries
     # Example: INFO [kv_connector_model_runner_mixin.py:XXX] Request req-id KV transfer breakdown - load: 0.0100s, save: 0.0067s
     breakdown_pattern = r'INFO.*\[kv_connector_model_runner_mixin\.py:\d+\] Request .* KV transfer breakdown - load: ([\d.]+)s, save: ([\d.]+)s'
     
-    try:
-        with open(log_file_path, encoding='utf-8') as f:
-            first_entry_skipped = False
-            for line in f:
-                match = re.search(breakdown_pattern, line)
-                if match:
-                    if not first_entry_skipped:
-                        # Skip the first entry (profile stage)
-                        first_entry_skipped = True
-                        continue
-                    
-                    load_time = float(match.group(1))
-                    save_time = float(match.group(2))
-                    
-                    load_times.append(load_time)
-                    save_times.append(save_time)
+    # Parse load times from decode log
+    if os.path.exists(decode_log_path):
+        try:
+            with open(decode_log_path, encoding='utf-8') as f:
+                first_entry_skipped = False
+                for line in f:
+                    match = re.search(breakdown_pattern, line)
+                    if match:
+                        if not first_entry_skipped:
+                            # Skip the first entry (profile stage)
+                            first_entry_skipped = True
+                            continue
+                        
+                        load_time = float(match.group(1))
+                        load_times.append(load_time)
+        except Exception as e:
+            print(f"Warning: Error reading decode log file {decode_log_path}: {e}")
+    else:
+        print(f"Warning: Decode log file {decode_log_path} not found. Load times will be empty.")
     
-    except Exception as e:
-        print(f"Warning: Error reading log file {log_file_path}: {e}")
-        return [], []
+    # Parse save times from prefill log
+    if os.path.exists(prefill_log_path):
+        try:
+            with open(prefill_log_path, encoding='utf-8') as f:
+                first_entry_skipped = False
+                for line in f:
+                    match = re.search(breakdown_pattern, line)
+                    if match:
+                        if not first_entry_skipped:
+                            # Skip the first entry (profile stage)
+                            first_entry_skipped = True
+                            continue
+                        
+                        save_time = float(match.group(2))
+                        save_times.append(save_time)
+        except Exception as e:
+            print(f"Warning: Error reading prefill log file {prefill_log_path}: {e}")
+    else:
+        print(f"Warning: Prefill log file {prefill_log_path} not found. Save times will be empty.")
     
-    print(f"Parsed {len(load_times)} KV transfer time records from {log_file_path}")
+    print(f"Parsed {len(load_times)} KV load time records from {decode_log_path}")
+    print(f"Parsed {len(save_times)} KV save time records from {prefill_log_path}")
     return load_times, save_times
 
 
