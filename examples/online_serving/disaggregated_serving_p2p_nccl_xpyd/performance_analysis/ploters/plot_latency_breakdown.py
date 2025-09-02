@@ -356,16 +356,6 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
 
     ax.bar(
         x_positions,
-        kv_load_pct,
-        bar_width,
-        label="KV Load",
-        color=kv_load_color,
-        bottom=bottom,
-    )
-    bottom += kv_load_pct
-
-    ax.bar(
-        x_positions,
         kv_save_pct,
         bar_width,
         label="KV Save",
@@ -373,6 +363,16 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
         bottom=bottom,
     )
     bottom += kv_save_pct
+
+    ax.bar(
+        x_positions,
+        kv_load_pct,
+        bar_width,
+        label="KV Load",
+        color=kv_load_color,
+        bottom=bottom,
+    )
+    bottom += kv_load_pct
 
     ax.bar(
         x_positions,
