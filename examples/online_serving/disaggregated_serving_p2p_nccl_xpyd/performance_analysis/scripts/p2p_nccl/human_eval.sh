@@ -18,7 +18,7 @@ run_benchmarks() {
     echo "Running benchmarks..."
     
     # Create results directory with dataset information
-    local result_subdir="${DATASET_NAME}"
+    local result_subdir="human_eval"
     mkdir -p "$RESULTS_DIR/$result_subdir"
     
     # Convert REQUEST_RATES string to array
