@@ -225,10 +225,10 @@ def plot_latency_breakdown(benchmark_data, output_file, num_gpus=1):
 
 def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     """
-    Plot TTFT breakdown as stacked bar chart.
-    TTFT includes: prefill_queue, prefill_execute, kv_load, kv_save, decode_queue, decode_execute.
-    Also shows unknown portion if the sum doesn't equal TTFT.
-    Reports error if component sum exceeds actual TTFT but continues plotting.
+    Plot TTFT breakdown as stacked bar chart showing hierarchical components.
+    TTFT includes: prefill_queue, prefill_execute (with kv_save as sub-component), 
+    decode_queue, decode_execute (with kv_load as sub-component).
+    Uses visual layering to show the inclusion relationship and proportions.
 
     Args:
         benchmark_data (dict): Data from benchmark results
@@ -249,11 +249,10 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     per_gpu_rates = []
     prefill_queue_data = []
     prefill_execute_data = []
-    kv_load_data = []
-    kv_save_data = []
     decode_queue_data = []
     first_token_decode_data = []
-    ttft_data = []
+    kv_save_data = []
+    kv_load_data = []
 
     for rate in sorted_rates:
         per_gpu_rate = rate / num_gpus
@@ -262,22 +261,14 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
         data = benchmark_data[rate]
         prefill_queue_data.append(data["mean_prefill_queue_time_ms"])
         prefill_execute_data.append(data["mean_prefill_execute_time_ms"])
-        # Separate KV load and save times
-        kv_load = data.get("mean_kv_load_time_ms", 0)
-        kv_save = data.get("mean_kv_save_time_ms", 0)
-        kv_load_data.append(kv_load)
-        kv_save_data.append(kv_save)
         decode_queue_data.append(data["mean_decode_queue_time_ms"])
         first_token_decode_data.append(data["mean_first_token_decode_time_ms"])
-        # Calculate actual TTFT from components for comparison
-        ttft_data.append(
-            data["mean_prefill_queue_time_ms"]
-            + data["mean_prefill_execute_time_ms"]
-            + kv_load
-            + kv_save
-            + data["mean_decode_queue_time_ms"]
-            + data["mean_first_token_decode_time_ms"]
-        )
+        
+        # KV times as sub-components
+        kv_save = data.get("mean_kv_save_time_ms", 0)
+        kv_load = data.get("mean_kv_load_time_ms", 0)
+        kv_save_data.append(kv_save)
+        kv_load_data.append(kv_load)
 
     # Calculate unknown portion (difference between actual TTFT and sum of components)
     actual_ttft = np.array(
@@ -286,10 +277,10 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     component_sum = (
         np.array(prefill_queue_data)
         + np.array(prefill_execute_data)
-        + np.array(kv_load_data)
         + np.array(kv_save_data)
         + np.array(decode_queue_data)
         + np.array(first_token_decode_data)
+        + np.array(kv_load_data)
     )
     
     # Check if component sum is greater than actual TTFT and report error
@@ -303,37 +294,53 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
               f"difference = {diff[max_diff_idx]:.3f}ms")
         print("Continuing with plot generation...")
     
+    # Validate hierarchical relationships
+    kv_save_array = np.array(kv_save_data)
+    kv_load_array = np.array(kv_load_data)
+    prefill_execute_array = np.array(prefill_execute_data)
+    first_token_decode_array = np.array(first_token_decode_data)
+    
+    # Check if KV save exceeds prefill execute
+    if np.any(kv_save_array > prefill_execute_array + 0.001):
+        print("WARNING: KV Save time exceeds Prefill Execute time in some cases!")
+    
+    # Check if KV load exceeds first token decode
+    if np.any(kv_load_array > first_token_decode_array + 0.001):
+        print("WARNING: KV Load time exceeds First Token Decode time in some cases!")
+    
     unknown_data = np.maximum(actual_ttft - component_sum, 0)  # Ensure non-negative
 
     # Convert to percentages of actual TTFT
     ttft_array = np.array(actual_ttft)
     prefill_queue_pct = np.array(prefill_queue_data) / ttft_array * 100
     prefill_execute_pct = np.array(prefill_execute_data) / ttft_array * 100
-    kv_load_pct = np.array(kv_load_data) / ttft_array * 100
     kv_save_pct = np.array(kv_save_data) / ttft_array * 100
     decode_queue_pct = np.array(decode_queue_data) / ttft_array * 100
     first_token_decode_pct = np.array(first_token_decode_data) / ttft_array * 100
+    kv_load_pct = np.array(kv_load_data) / ttft_array * 100
     unknown_pct = np.array(unknown_data) / ttft_array * 100
 
     # Set up the bar chart
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(14, 8))
 
-    # Colors for each component
+    # Colors for hierarchical components
+    # Use color families to show relationships
     prefill_queue_color = "lightgreen"  # Prefill Queuing
-    prefill_execute_color = "green"  # Prefill Execution
-    kv_load_color = "orange"  # KV Load
-    kv_save_color = "darkorange"  # KV Save
-    decode_queue_color = "skyblue"  # Decoding Queueing
-    first_token_decode_color = "dodgerblue"  # First Token Decoding
+    prefill_execute_color = "darkgreen"  # Prefill Execution (main)
+    kv_save_color = "forestgreen"  # KV Save (sub-component of prefill execute)
+    decode_queue_color = "lightblue"  # Decoding Queueing
+    first_token_decode_color = "darkblue"  # First Token Decoding (main)
+    kv_load_color = "royalblue"  # KV Load (sub-component of first token decode)
     unknown_color = "gray"  # Unknown
 
     # Create stacked bar chart
     bar_width = 0.35
     x_positions = np.arange(len(per_gpu_rates))
 
-    # Plot bars from bottom to top
+    # Plot bars from bottom to top, showing hierarchical structure
     bottom = np.zeros(len(per_gpu_rates))
 
+    # Prefill Queuing (independent component)
     ax.bar(
         x_positions,
         prefill_queue_pct,
@@ -344,36 +351,33 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     )
     bottom += prefill_queue_pct
 
+    # Prefill Execution (excluding KV save) - the "other" part of prefill execution
+    # Ensure non-negative values when KV save might exceed prefill execute
+    prefill_execute_other_pct = np.maximum(prefill_execute_pct - kv_save_pct, 0)
     ax.bar(
         x_positions,
-        prefill_execute_pct,
+        prefill_execute_other_pct,
         bar_width,
-        label="Prefill Execution",
+        label="Prefill Execution (excl. KV Save)",
         color=prefill_execute_color,
         bottom=bottom,
     )
-    bottom += prefill_execute_pct
+    bottom += prefill_execute_other_pct
 
+    # KV Save (sub-component of prefill execution)
+    # Cap KV save at prefill execute when it exceeds
+    kv_save_capped_pct = np.minimum(kv_save_pct, prefill_execute_pct)
     ax.bar(
         x_positions,
-        kv_save_pct,
+        kv_save_capped_pct,
         bar_width,
-        label="KV Save",
+        label="KV Save (part of Prefill Exec)",
         color=kv_save_color,
         bottom=bottom,
     )
-    bottom += kv_save_pct
+    bottom += kv_save_capped_pct
 
-    ax.bar(
-        x_positions,
-        kv_load_pct,
-        bar_width,
-        label="KV Load",
-        color=kv_load_color,
-        bottom=bottom,
-    )
-    bottom += kv_load_pct
-
+    # Decoding Queueing (independent component)
     ax.bar(
         x_positions,
         decode_queue_pct,
@@ -384,16 +388,33 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     )
     bottom += decode_queue_pct
 
+    # First Token Decoding (excluding KV load) - the "other" part of first token decode
+    # Ensure non-negative values when KV load might exceed first token decode
+    first_token_decode_other_pct = np.maximum(first_token_decode_pct - kv_load_pct, 0)
     ax.bar(
         x_positions,
-        first_token_decode_pct,
+        first_token_decode_other_pct,
         bar_width,
-        label="First Token Decoding",
+        label="First Token Decoding (excl. KV Load)",
         color=first_token_decode_color,
         bottom=bottom,
     )
-    bottom += first_token_decode_pct
+    bottom += first_token_decode_other_pct
 
+    # KV Load (sub-component of first token decoding)
+    # Cap KV load at first token decode when it exceeds
+    kv_load_capped_pct = np.minimum(kv_load_pct, first_token_decode_pct)
+    ax.bar(
+        x_positions,
+        kv_load_capped_pct,
+        bar_width,
+        label="KV Load (part of First Token Decode)",
+        color=kv_load_color,
+        bottom=bottom,
+    )
+    bottom += kv_load_capped_pct
+
+    # Unknown portion
     ax.bar(
         x_positions,
         unknown_pct,
@@ -406,17 +427,19 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     # Set labels and title
     ax.set_xlabel("Per-GPU Rate (req/s)")
     ax.set_ylabel("TTFT Breakdown (%)")
-    ax.set_title("TTFT Breakdown by Component")
+    ax.set_title("TTFT Hierarchical Breakdown: Components and Sub-components")
     ax.set_xticks(x_positions)
     ax.set_xticklabels([f"{rate:.1f}" for rate in per_gpu_rates])
-    ax.legend()
+    
+    # Customize legend to show hierarchy more clearly
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax.grid(axis="y", alpha=0.3)
 
     plt.tight_layout()
 
     if output_file:
         plt.savefig(output_file, dpi=300, bbox_inches="tight")
-        print(f"TTFT breakdown plot saved to {output_file}")
+        print(f"TTFT hierarchical breakdown plot saved to {output_file}")
 
 
 def main():
