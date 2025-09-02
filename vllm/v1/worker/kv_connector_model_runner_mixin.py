@@ -152,14 +152,12 @@ class KVConnectorModelRunnerMixin:
         output.finished_recving = finished_recving
         return output
 
-    def log_kv_transfer_time(self, req_id: str, load_time: float = 0.0, save_time: float = 0.0):
+    def log_kv_transfer_cumulative_time(self, req_id: str):
         """
-        Log KV transfer times for a specific request in the format expected by benchmarks.
-        
-        Args:
-            req_id: Request ID
-            load_time: Time spent on KV load operations in seconds
-            save_time: Time spent on KV save operations in seconds
+        Log the cumulative KV transfer time for a specific request.
+        This should be called when a request is finished or at decode completion.
         """
-        # Log in the format expected by parse_kv_transfer_detailed_times_from_log
-        logger.info(f"Request {req_id} KV transfer breakdown - load: {load_time:.4f}s, save: {save_time:.4f}s")
+        if hasattr(self, 'requests') and req_id in self.requests:
+            total_time = self.requests[req_id].kv_transfer_total_time
+            if total_time > 0:
+                logger.info(f"Request {req_id} total KV transfer time: {total_time:.4f}s")

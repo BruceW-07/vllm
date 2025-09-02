@@ -385,10 +385,8 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
         """
         # Remove finished requests from the cached states.
         for req_id in scheduler_output.finished_req_ids:
-            # Log KV transfer time breakdown before removing the request
-            if req_id in self.requests:
-                req_state = self.requests[req_id]
-                self.log_kv_transfer_time(req_id, req_state.kv_load_time, req_state.kv_save_time)
+            # Log cumulative KV transfer time before removing the request
+            self.log_kv_transfer_cumulative_time(req_id)
             self.requests.pop(req_id, None)
             self.encoder_cache.pop(req_id, None)
         # Remove the finished requests from the persistent batch.
