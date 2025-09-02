@@ -68,10 +68,6 @@ cleanup() {
         fi
     fi
     
-    # Additional cleanup for any remaining vllm processes
-    echo "Cleaning up any remaining vllm processes..."
-    pkill -f "vllm serve" 2>/dev/null || true
-    
     # Wait a bit for processes to fully terminate
     sleep 2
     
