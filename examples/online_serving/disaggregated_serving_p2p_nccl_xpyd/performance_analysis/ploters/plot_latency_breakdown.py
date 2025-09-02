@@ -271,16 +271,15 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
         kv_load_data.append(kv_load)
 
     # Calculate unknown portion (difference between actual TTFT and sum of components)
+    # Note: KV times are sub-components of prefill_execute and first_token_decode, not separate components
     actual_ttft = np.array(
         [benchmark_data[rate]["mean_ttft_ms"] for rate in sorted_rates]
     )
     component_sum = (
         np.array(prefill_queue_data)
         + np.array(prefill_execute_data)
-        + np.array(kv_save_data)
         + np.array(decode_queue_data)
         + np.array(first_token_decode_data)
-        + np.array(kv_load_data)
     )
     
     # Check if component sum is greater than actual TTFT and report error
@@ -324,14 +323,14 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     fig, ax = plt.subplots(figsize=(14, 8))
 
     # Colors for hierarchical components
-    # Use color families to show relationships
+    # Use distinct colors to clearly distinguish KV operations
     prefill_queue_color = "lightgreen"  # Prefill Queuing
     prefill_execute_color = "darkgreen"  # Prefill Execution (main)
-    kv_save_color = "forestgreen"  # KV Save (sub-component of prefill execute)
+    kv_save_color = "darkorange"  # KV Save (sub-component of prefill execute) - distinct orange
     decode_queue_color = "lightblue"  # Decoding Queueing
+    kv_load_color = "mediumpurple"  # KV Load (sub-component of first token decode) - distinct purple
     first_token_decode_color = "darkblue"  # First Token Decoding (main)
-    kv_load_color = "royalblue"  # KV Load (sub-component of first token decode)
-    unknown_color = "gray"  # Unknown
+    unknown_color = "lightgray"  # Unknown
 
     # Create stacked bar chart
     bar_width = 0.35
@@ -388,7 +387,20 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     )
     bottom += decode_queue_pct
 
-    # First Token Decoding (excluding KV load) - the "other" part of first token decode
+    # KV Load (first part of first token decoding)
+    # Cap KV load at first token decode when it exceeds
+    kv_load_capped_pct = np.minimum(kv_load_pct, first_token_decode_pct)
+    ax.bar(
+        x_positions,
+        kv_load_capped_pct,
+        bar_width,
+        label="KV Load (first part of Decode Exec)",
+        color=kv_load_color,
+        bottom=bottom,
+    )
+    bottom += kv_load_capped_pct
+
+    # First Token Decoding (excluding KV load) - the remaining part of first token decode
     # Ensure non-negative values when KV load might exceed first token decode
     first_token_decode_other_pct = np.maximum(first_token_decode_pct - kv_load_pct, 0)
     ax.bar(
@@ -400,19 +412,6 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
         bottom=bottom,
     )
     bottom += first_token_decode_other_pct
-
-    # KV Load (sub-component of first token decoding)
-    # Cap KV load at first token decode when it exceeds
-    kv_load_capped_pct = np.minimum(kv_load_pct, first_token_decode_pct)
-    ax.bar(
-        x_positions,
-        kv_load_capped_pct,
-        bar_width,
-        label="KV Load (part of First Token Decode)",
-        color=kv_load_color,
-        bottom=bottom,
-    )
-    bottom += kv_load_capped_pct
 
     # Unknown portion
     ax.bar(
