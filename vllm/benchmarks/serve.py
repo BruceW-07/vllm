@@ -46,7 +46,7 @@ from vllm.transformers_utils.tokenizer import get_tokenizer
 MILLISECONDS_TO_SECONDS_CONVERSION = 1000
 
 
-def parse_kv_transfer_detailed_times_from_log(log_file_path: str = "decode_instance_0.log") -> tuple[list[float], list[float]]:
+def parse_kv_transfer_detailed_times_from_log(log_file_path: str = "decode1.log") -> tuple[list[float], list[float]]:
     """
     Parse detailed KV transfer times from log file.
     
