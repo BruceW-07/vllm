@@ -226,8 +226,9 @@ def plot_latency_breakdown(benchmark_data, output_file, num_gpus=1):
 def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     """
     Plot TTFT breakdown as stacked bar chart.
-    TTFT includes: prefill_queue, prefill_execute, kv_transfer, decode_queue, decode_execute.
+    TTFT includes: prefill_queue, prefill_execute, kv_load, kv_save, decode_queue, decode_execute.
     Also shows unknown portion if the sum doesn't equal TTFT.
+    Reports error if component sum exceeds actual TTFT but continues plotting.
 
     Args:
         benchmark_data (dict): Data from benchmark results
@@ -248,7 +249,8 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     per_gpu_rates = []
     prefill_queue_data = []
     prefill_execute_data = []
-    kv_transfer_data = []
+    kv_load_data = []
+    kv_save_data = []
     decode_queue_data = []
     first_token_decode_data = []
     ttft_data = []
@@ -260,16 +262,19 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
         data = benchmark_data[rate]
         prefill_queue_data.append(data["mean_prefill_queue_time_ms"])
         prefill_execute_data.append(data["mean_prefill_execute_time_ms"])
-        # Combine KV load and save times for total KV transfer time
-        kv_total = data.get("mean_kv_load_time_ms", 0) + data.get("mean_kv_save_time_ms", 0)
-        kv_transfer_data.append(kv_total)
+        # Separate KV load and save times
+        kv_load = data.get("mean_kv_load_time_ms", 0)
+        kv_save = data.get("mean_kv_save_time_ms", 0)
+        kv_load_data.append(kv_load)
+        kv_save_data.append(kv_save)
         decode_queue_data.append(data["mean_decode_queue_time_ms"])
         first_token_decode_data.append(data["mean_first_token_decode_time_ms"])
         # Calculate actual TTFT from components for comparison
         ttft_data.append(
             data["mean_prefill_queue_time_ms"]
             + data["mean_prefill_execute_time_ms"]
-            + kv_total
+            + kv_load
+            + kv_save
             + data["mean_decode_queue_time_ms"]
             + data["mean_first_token_decode_time_ms"]
         )
@@ -281,17 +286,31 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     component_sum = (
         np.array(prefill_queue_data)
         + np.array(prefill_execute_data)
-        + np.array(kv_transfer_data)
+        + np.array(kv_load_data)
+        + np.array(kv_save_data)
         + np.array(decode_queue_data)
         + np.array(first_token_decode_data)
     )
+    
+    # Check if component sum is greater than actual TTFT and report error
+    diff = component_sum - actual_ttft
+    if np.any(diff > 0.001):  # Allow small numerical errors
+        max_diff_idx = np.argmax(diff)
+        print(f"ERROR: Component sum exceeds actual TTFT!")
+        print(f"Worst case at rate {sorted_rates[max_diff_idx]}: "
+              f"component sum = {component_sum[max_diff_idx]:.3f}ms, "
+              f"actual TTFT = {actual_ttft[max_diff_idx]:.3f}ms, "
+              f"difference = {diff[max_diff_idx]:.3f}ms")
+        print("Continuing with plot generation...")
+    
     unknown_data = np.maximum(actual_ttft - component_sum, 0)  # Ensure non-negative
 
     # Convert to percentages of actual TTFT
     ttft_array = np.array(actual_ttft)
     prefill_queue_pct = np.array(prefill_queue_data) / ttft_array * 100
     prefill_execute_pct = np.array(prefill_execute_data) / ttft_array * 100
-    kv_transfer_pct = np.array(kv_transfer_data) / ttft_array * 100
+    kv_load_pct = np.array(kv_load_data) / ttft_array * 100
+    kv_save_pct = np.array(kv_save_data) / ttft_array * 100
     decode_queue_pct = np.array(decode_queue_data) / ttft_array * 100
     first_token_decode_pct = np.array(first_token_decode_data) / ttft_array * 100
     unknown_pct = np.array(unknown_data) / ttft_array * 100
@@ -302,7 +321,8 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
     # Colors for each component
     prefill_queue_color = "lightgreen"  # Prefill Queuing
     prefill_execute_color = "green"  # Prefill Execution
-    kv_transfer_color = "orange"  # KV Transfer
+    kv_load_color = "orange"  # KV Load
+    kv_save_color = "darkorange"  # KV Save
     decode_queue_color = "skyblue"  # Decoding Queueing
     first_token_decode_color = "dodgerblue"  # First Token Decoding
     unknown_color = "gray"  # Unknown
@@ -336,13 +356,23 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
 
     ax.bar(
         x_positions,
-        kv_transfer_pct,
+        kv_load_pct,
         bar_width,
-        label="KV Transfer",
-        color=kv_transfer_color,
+        label="KV Load",
+        color=kv_load_color,
         bottom=bottom,
     )
-    bottom += kv_transfer_pct
+    bottom += kv_load_pct
+
+    ax.bar(
+        x_positions,
+        kv_save_pct,
+        bar_width,
+        label="KV Save",
+        color=kv_save_color,
+        bottom=bottom,
+    )
+    bottom += kv_save_pct
 
     ax.bar(
         x_positions,
