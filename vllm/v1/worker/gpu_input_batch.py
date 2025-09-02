@@ -44,8 +44,9 @@ class CachedRequestState:
 
     lora_request: Optional[LoRARequest] = None
     
-    # KV transfer time tracking
-    kv_transfer_total_time: float = 0.0
+    # KV transfer time tracking (batch-level times)
+    kv_load_time: float = 0.0
+    kv_save_time: float = 0.0
 
     def __post_init__(self):
         self.num_prompt_tokens = len(self.prompt_token_ids)

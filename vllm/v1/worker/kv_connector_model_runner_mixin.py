@@ -26,7 +26,7 @@ class KVConnectorModelRunnerMixin:
 
     def maybe_setup_kv_connector_with_timing(self, scheduler_output: "SchedulerOutput"):
         """
-        Setup KV connector and track timing per request.
+        Setup KV connector and track batch-level timing.
         """
         # Update KVConnector with the KVConnector metadata forward().
         if has_kv_transfer_group():
@@ -46,19 +46,18 @@ class KVConnectorModelRunnerMixin:
             kv_load_time = ed - st
             logger.debug(f"KV load took {kv_load_time:.4f}s")
             
-            # Track KV transfer time per request
+            # Track batch-level KV load time for all requests in the batch
             if hasattr(self, 'requests'):
                 # Get active request IDs from scheduler output
                 active_req_ids = set()
                 if hasattr(scheduler_output, 'num_scheduled_tokens'):
                     active_req_ids.update(scheduler_output.num_scheduled_tokens.keys())
                 
-                # Distribute the KV load time among active requests
+                # Use batch-level time for each request (no division by request count)
                 if active_req_ids:
-                    time_per_request = kv_load_time / len(active_req_ids)
                     for req_id in active_req_ids:
                         if req_id in self.requests:
-                            self.requests[req_id].kv_transfer_total_time += time_per_request
+                            self.requests[req_id].kv_load_time = kv_load_time
 
     @staticmethod
     def maybe_setup_kv_connector(scheduler_output: "SchedulerOutput"):
@@ -80,9 +79,51 @@ class KVConnectorModelRunnerMixin:
             logger.debug(f"KV load took {ed - st:.2f}s")
 
     @staticmethod
-    def maybe_wait_for_kv_save() -> None:
+    def maybe_wait_for_kv_save() -> float:
+        """
+        Wait for KV save operations to complete and return the wait time.
+        
+        Returns:
+            float: Time spent waiting for KV save operations in seconds
+        """
         if has_kv_transfer_group():
+            st = time.monotonic()
             get_kv_transfer_group().wait_for_save()
+            ed = time.monotonic()
+            kv_save_time = ed - st
+            logger.debug(f"KV save wait took {kv_save_time:.4f}s")
+            return kv_save_time
+        return 0.0
+
+    def maybe_wait_for_kv_save_with_timing(self, scheduler_output: "SchedulerOutput") -> float:
+        """
+        Wait for KV save operations and track batch-level timing.
+        
+        Returns:
+            float: Time spent waiting for KV save operations in seconds
+        """
+        if has_kv_transfer_group():
+            st = time.monotonic()
+            get_kv_transfer_group().wait_for_save()
+            ed = time.monotonic()
+            kv_save_time = ed - st
+            logger.debug(f"KV save wait took {kv_save_time:.4f}s")
+            
+            # Track batch-level KV save time for all requests in the batch
+            if hasattr(self, 'requests'):
+                # Get active request IDs from scheduler output
+                active_req_ids = set()
+                if hasattr(scheduler_output, 'num_scheduled_tokens'):
+                    active_req_ids.update(scheduler_output.num_scheduled_tokens.keys())
+                
+                # Use batch-level time for each request (no division by request count)
+                if active_req_ids:
+                    for req_id in active_req_ids:
+                        if req_id in self.requests:
+                            self.requests[req_id].kv_save_time = kv_save_time
+            
+            return kv_save_time
+        return 0.0
 
     @staticmethod
     def get_finished_kv_transfers(
@@ -109,12 +150,14 @@ class KVConnectorModelRunnerMixin:
         output.finished_recving = finished_recving
         return output
 
-    def log_kv_transfer_cumulative_time(self, req_id: str):
+    def log_kv_transfer_time(self, req_id: str, load_time: float = 0.0, save_time: float = 0.0):
         """
-        Log the cumulative KV transfer time for a specific request.
-        This should be called when a request is finished or at decode completion.
+        Log KV transfer times for a specific request in the format expected by benchmarks.
+        
+        Args:
+            req_id: Request ID
+            load_time: Time spent on KV load operations in seconds
+            save_time: Time spent on KV save operations in seconds
         """
-        if hasattr(self, 'requests') and req_id in self.requests:
-            total_time = self.requests[req_id].kv_transfer_total_time
-            if total_time > 0:
-                logger.info(f"Request {req_id} total KV transfer time: {total_time:.4f}s")
+        # Log in the format expected by parse_kv_transfer_detailed_times_from_log
+        logger.info(f"Request {req_id} KV transfer breakdown - load: {load_time:.4f}s, save: {save_time:.4f}s")

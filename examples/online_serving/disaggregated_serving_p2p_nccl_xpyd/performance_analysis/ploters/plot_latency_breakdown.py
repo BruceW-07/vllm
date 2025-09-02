@@ -94,7 +94,8 @@ def read_benchmark_data(folder_path):
                 mean_decode_queue_time_ms = json_data.get("mean_decode_queue_time_ms")
                 mean_e2el_ms = json_data.get("mean_e2el_ms")
                 mean_ttft_ms = json_data.get("mean_ttft_ms")
-                mean_kv_transfer_time_ms = json_data.get("mean_kv_transfer_time_ms")
+                mean_kv_load_time_ms = json_data.get("mean_kv_load_time_ms")
+                mean_kv_save_time_ms = json_data.get("mean_kv_save_time_ms")
                 mean_decode_execute_time_ms = json_data.get(
                     "mean_decode_execute_time_ms"
                 )  # First token decode time
@@ -123,8 +124,11 @@ def read_benchmark_data(folder_path):
                     "mean_total_decode_execute_time_ms": float(
                         mean_total_decode_execute_time_ms
                     ),  # All tokens decode time
-                    "mean_kv_transfer_time_ms": float(mean_kv_transfer_time_ms)
-                    if mean_kv_transfer_time_ms is not None
+                    "mean_kv_load_time_ms": float(mean_kv_load_time_ms)
+                    if mean_kv_load_time_ms is not None
+                    else 0.0,
+                    "mean_kv_save_time_ms": float(mean_kv_save_time_ms)
+                    if mean_kv_save_time_ms is not None
                     else 0.0,
                     "mean_ttft_ms": float(mean_ttft_ms),
                 }
@@ -256,14 +260,16 @@ def plot_ttft_breakdown(benchmark_data, output_file, num_gpus=1):
         data = benchmark_data[rate]
         prefill_queue_data.append(data["mean_prefill_queue_time_ms"])
         prefill_execute_data.append(data["mean_prefill_execute_time_ms"])
-        kv_transfer_data.append(data["mean_kv_transfer_time_ms"])
+        # Combine KV load and save times for total KV transfer time
+        kv_total = data.get("mean_kv_load_time_ms", 0) + data.get("mean_kv_save_time_ms", 0)
+        kv_transfer_data.append(kv_total)
         decode_queue_data.append(data["mean_decode_queue_time_ms"])
         first_token_decode_data.append(data["mean_first_token_decode_time_ms"])
         # Calculate actual TTFT from components for comparison
         ttft_data.append(
             data["mean_prefill_queue_time_ms"]
             + data["mean_prefill_execute_time_ms"]
-            + data["mean_kv_transfer_time_ms"]
+            + kv_total
             + data["mean_decode_queue_time_ms"]
             + data["mean_first_token_decode_time_ms"]
         )
