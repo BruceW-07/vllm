@@ -93,6 +93,7 @@ class RequestState:
         arrival_time: float,
         queue: Optional[RequestOutputCollector],
         log_stats: bool,
+        arrival_ts: Optional[float] = None,
     ):
         self.request_id = request_id
         self.parent_req = parent_req
@@ -109,7 +110,8 @@ class RequestState:
         self.queue = queue
 
         self.stats = RequestStateStats(
-            arrival_time=arrival_time) if log_stats else None
+            arrival_time=arrival_time,
+            arrival_ts=arrival_ts) if log_stats else None
 
     @classmethod
     def from_new_request(
@@ -158,6 +160,7 @@ class RequestState:
             arrival_time=request.arrival_time,
             queue=queue,
             log_stats=log_stats,
+            arrival_ts=request.arrival_ts,
         )
 
     def make_request_output(
@@ -282,8 +285,9 @@ class RequestState:
         timing = {}
 
         # Calculate derived timing metrics
-        if stats.scheduled_ts > 0 and stats.queued_ts > 0:
-            timing["queued_time"] = stats.scheduled_ts - stats.queued_ts
+        # Use arrival_ts (when request enters system) to scheduled_ts for complete queue time
+        if stats.scheduled_ts > 0:
+            timing["queued_time"] = stats.scheduled_ts - stats.arrival_ts
 
         if stats.first_token_ts > 0 and stats.scheduled_ts > 0:
             timing["execute_time"] = stats.first_token_ts - stats.scheduled_ts

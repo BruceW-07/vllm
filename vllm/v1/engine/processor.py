@@ -244,6 +244,9 @@ class Processor:
 
         if arrival_time is None:
             arrival_time = time.time()
+        
+        # Set arrival_ts for queue time measurement (monotonic time)
+        arrival_ts = time.monotonic()
 
         # Process inputs, which includes:
         # 1. Tokenize text prompt, with LoRA request if one exists.
@@ -346,6 +349,7 @@ class Processor:
             pooling_params=pooling_params,
             eos_token_id=eos_token_id,
             arrival_time=arrival_time,
+            arrival_ts=arrival_ts,
             lora_request=lora_request,
             cache_salt=decoder_inputs.get("cache_salt"),
             priority=priority,

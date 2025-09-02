@@ -56,6 +56,7 @@ class EngineCoreRequest(
     pooling_params: Optional[PoolingParams]
     eos_token_id: Optional[int]
     arrival_time: float
+    arrival_ts: float  # Monotonic timestamp for queue time measurement
     lora_request: Optional[LoRARequest]
     cache_salt: Optional[str]
     data_parallel_rank: Optional[int]

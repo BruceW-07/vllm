@@ -59,7 +59,8 @@ class RequestStateStats:
     arrival_time: float = 0.0
 
     # These are engine core timestamps (monotonic)
-    queued_ts: float = 0.0
+    arrival_ts: float = 0.0      # When request arrives (monotonic time)
+    queued_ts: float = 0.0       # When request enters EngineCore queue (monotonic)
     scheduled_ts: float = 0.0
     first_token_ts: float = 0.0
     last_token_ts: float = 0.0
