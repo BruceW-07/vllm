@@ -158,6 +158,7 @@ class KVConnectorModelRunnerMixin:
         This should be called when a request is finished or at decode completion.
         """
         if hasattr(self, 'requests') and req_id in self.requests:
-            total_time = self.requests[req_id].kv_transfer_total_time
-            if total_time > 0:
-                logger.info(f"Request {req_id} total KV transfer time: {total_time:.4f}s")
+            req_state = self.requests[req_id]
+            kv_load_time = req_state.kv_load_time
+            kv_save_time = req_state.kv_save_time
+            logger.info(f"Request {req_id} KV transfer breakdown - load: {kv_load_time:.4f}s, save: {kv_save_time:.4f}s")
